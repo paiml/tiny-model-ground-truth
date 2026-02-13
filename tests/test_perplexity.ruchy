@@ -1,0 +1,103 @@
+// test_perplexity.ruchy — Perplexity bound tests
+//
+// Verifies that model perplexity stays within expected bounds per model,
+// and that Q4K vs Q6K PPL difference is < 0.5.
+//
+// Model-specific PPL ceilings:
+//   SmolLM-135M: 20.0
+//   Qwen2-0.5B:  15.0
+//   GPT-2 124M:  30.0
+
+import std::process
+
+// --- Helpers (ruchy has no file imports, must be inline) ---
+
+fun run_apr(args) {
+    let (stdout, stderr, code) = process::execute("apr", args)?
+    if code != 0 { return Err(f"apr failed ({code}): {stderr}") }
+    Ok(stdout)
+}
+
+fun apr_eval_json(model_path) {
+    let stdout = run_apr(["eval", model_path, "--threshold", "50.0", "--json"])?
+    Ok(parse_json(stdout))
+}
+
+fun abs_diff(a, b) {
+    if a > b { a - b } else { b - a }
+}
+
+// --- SmolLM-135M perplexity ---
+
+@test
+fun test_ppl_smollm_q4k_bound() {
+    let result = apr_eval_json("models/smollm-135m-q4k.apr")?
+    assert(result.perplexity < 20.0,
+        f"SmolLM Q4K PPL {result.perplexity} exceeds ceiling 20.0")
+}
+
+@test
+fun test_ppl_smollm_q6k_bound() {
+    let result = apr_eval_json("models/smollm-135m-q6k.apr")?
+    assert(result.perplexity < 20.0,
+        f"SmolLM Q6K PPL {result.perplexity} exceeds ceiling 20.0")
+}
+
+@test
+fun test_ppl_smollm_q4k_vs_q6k() {
+    let q4k = apr_eval_json("models/smollm-135m-q4k.apr")?
+    let q6k = apr_eval_json("models/smollm-135m-q6k.apr")?
+    let diff = abs_diff(q4k.perplexity, q6k.perplexity)
+    assert(diff < 0.5,
+        f"SmolLM Q4K/Q6K PPL diff {diff} exceeds 0.5 (Q4K={q4k.perplexity}, Q6K={q6k.perplexity})")
+}
+
+// --- Qwen2-0.5B perplexity ---
+
+@test
+fun test_ppl_qwen2_q4k_bound() {
+    let result = apr_eval_json("models/qwen2-0.5b-q4k.apr")?
+    assert(result.perplexity < 15.0,
+        f"Qwen2 Q4K PPL {result.perplexity} exceeds ceiling 15.0")
+}
+
+@test
+fun test_ppl_qwen2_q6k_bound() {
+    let result = apr_eval_json("models/qwen2-0.5b-q6k.apr")?
+    assert(result.perplexity < 15.0,
+        f"Qwen2 Q6K PPL {result.perplexity} exceeds ceiling 15.0")
+}
+
+@test
+fun test_ppl_qwen2_q4k_vs_q6k() {
+    let q4k = apr_eval_json("models/qwen2-0.5b-q4k.apr")?
+    let q6k = apr_eval_json("models/qwen2-0.5b-q6k.apr")?
+    let diff = abs_diff(q4k.perplexity, q6k.perplexity)
+    assert(diff < 0.5,
+        f"Qwen2 Q4K/Q6K PPL diff {diff} exceeds 0.5 (Q4K={q4k.perplexity}, Q6K={q6k.perplexity})")
+}
+
+// --- GPT-2 perplexity ---
+
+@test
+fun test_ppl_gpt2_q4k_bound() {
+    let result = apr_eval_json("models/gpt2-124m-q4k.apr")?
+    assert(result.perplexity < 30.0,
+        f"GPT-2 Q4K PPL {result.perplexity} exceeds ceiling 30.0")
+}
+
+@test
+fun test_ppl_gpt2_q6k_bound() {
+    let result = apr_eval_json("models/gpt2-124m-q6k.apr")?
+    assert(result.perplexity < 30.0,
+        f"GPT-2 Q6K PPL {result.perplexity} exceeds ceiling 30.0")
+}
+
+@test
+fun test_ppl_gpt2_q4k_vs_q6k() {
+    let q4k = apr_eval_json("models/gpt2-124m-q4k.apr")?
+    let q6k = apr_eval_json("models/gpt2-124m-q6k.apr")?
+    let diff = abs_diff(q4k.perplexity, q6k.perplexity)
+    assert(diff < 0.5,
+        f"GPT-2 Q4K/Q6K PPL diff {diff} exceeds 0.5 (Q4K={q4k.perplexity}, Q6K={q6k.perplexity})")
+}

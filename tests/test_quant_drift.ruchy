@@ -1,0 +1,161 @@
+// test_quant_drift.ruchy — Quantization drift ordering tests
+//
+// Verifies that Q6K (higher precision) produces fewer or equal token mismatches
+// vs oracle compared to Q4K (lower precision). Specifically:
+// Q6K mismatches ≤ Q4K mismatches + 1
+
+import std::fs
+import std::process
+
+// --- Helpers (ruchy has no file imports, must be inline) ---
+
+fun run_apr(args) {
+    let (stdout, stderr, code) = process::execute("apr", args)?
+    if code != 0 { return Err(f"apr failed ({code}): {stderr}") }
+    Ok(stdout)
+}
+
+fun apr_run_json(model_path, prompt) {
+    let stdout = run_apr(["run", model_path, "-p", prompt, "-n", "32", "--json"])?
+    Ok(parse_json(stdout))
+}
+
+fun load_oracle(slug, prompt_name) {
+    let text = fs::read_to_string(f"oracle/{slug}/{prompt_name}.json")?
+    Ok(parse_json(text))
+}
+
+fun count_mismatches(a, b) {
+    let min_len = if a.len() < b.len() { a.len() } else { b.len() }
+    let mut m = 0
+    for i in range(0, min_len) { if a[i] != b[i] { m = m + 1 } }
+    let d = a.len() - b.len()
+    if d < 0 { d = -d }
+    m + d
+}
+
+// --- SmolLM-135M drift ordering ---
+
+@test
+fun test_quant_drift_smollm_arithmetic() {
+    let oracle = load_oracle("smollm-135m", "arithmetic")?
+    let q4k = apr_run_json("models/smollm-135m-q4k.apr", oracle.prompt)?
+    let q6k = apr_run_json("models/smollm-135m-q6k.apr", oracle.prompt)?
+    let q4k_miss = count_mismatches(q4k.tokens, oracle.tokens)
+    let q6k_miss = count_mismatches(q6k.tokens, oracle.tokens)
+    assert(q6k_miss <= q4k_miss + 1, f"SmolLM arithmetic: Q6K ({q6k_miss}) should be ≤ Q4K ({q4k_miss}) + 1")
+}
+
+@test
+fun test_quant_drift_smollm_completion() {
+    let oracle = load_oracle("smollm-135m", "completion")?
+    let q4k = apr_run_json("models/smollm-135m-q4k.apr", oracle.prompt)?
+    let q6k = apr_run_json("models/smollm-135m-q6k.apr", oracle.prompt)?
+    let q4k_miss = count_mismatches(q4k.tokens, oracle.tokens)
+    let q6k_miss = count_mismatches(q6k.tokens, oracle.tokens)
+    assert(q6k_miss <= q4k_miss + 1, f"SmolLM completion: Q6K ({q6k_miss}) should be ≤ Q4K ({q4k_miss}) + 1")
+}
+
+@test
+fun test_quant_drift_smollm_code() {
+    let oracle = load_oracle("smollm-135m", "code")?
+    let q4k = apr_run_json("models/smollm-135m-q4k.apr", oracle.prompt)?
+    let q6k = apr_run_json("models/smollm-135m-q6k.apr", oracle.prompt)?
+    let q4k_miss = count_mismatches(q4k.tokens, oracle.tokens)
+    let q6k_miss = count_mismatches(q6k.tokens, oracle.tokens)
+    assert(q6k_miss <= q4k_miss + 1, f"SmolLM code: Q6K ({q6k_miss}) should be ≤ Q4K ({q4k_miss}) + 1")
+}
+
+@test
+fun test_quant_drift_smollm_greeting() {
+    let oracle = load_oracle("smollm-135m", "greeting")?
+    let q4k = apr_run_json("models/smollm-135m-q4k.apr", oracle.prompt)?
+    let q6k = apr_run_json("models/smollm-135m-q6k.apr", oracle.prompt)?
+    let q4k_miss = count_mismatches(q4k.tokens, oracle.tokens)
+    let q6k_miss = count_mismatches(q6k.tokens, oracle.tokens)
+    assert(q6k_miss <= q4k_miss + 1, f"SmolLM greeting: Q6K ({q6k_miss}) should be ≤ Q4K ({q4k_miss}) + 1")
+}
+
+// --- Qwen2-0.5B drift ordering ---
+
+@test
+fun test_quant_drift_qwen2_arithmetic() {
+    let oracle = load_oracle("qwen2-0.5b", "arithmetic")?
+    let q4k = apr_run_json("models/qwen2-0.5b-q4k.apr", oracle.prompt)?
+    let q6k = apr_run_json("models/qwen2-0.5b-q6k.apr", oracle.prompt)?
+    let q4k_miss = count_mismatches(q4k.tokens, oracle.tokens)
+    let q6k_miss = count_mismatches(q6k.tokens, oracle.tokens)
+    assert(q6k_miss <= q4k_miss + 1, f"Qwen2 arithmetic: Q6K ({q6k_miss}) should be ≤ Q4K ({q4k_miss}) + 1")
+}
+
+@test
+fun test_quant_drift_qwen2_completion() {
+    let oracle = load_oracle("qwen2-0.5b", "completion")?
+    let q4k = apr_run_json("models/qwen2-0.5b-q4k.apr", oracle.prompt)?
+    let q6k = apr_run_json("models/qwen2-0.5b-q6k.apr", oracle.prompt)?
+    let q4k_miss = count_mismatches(q4k.tokens, oracle.tokens)
+    let q6k_miss = count_mismatches(q6k.tokens, oracle.tokens)
+    assert(q6k_miss <= q4k_miss + 1, f"Qwen2 completion: Q6K ({q6k_miss}) should be ≤ Q4K ({q4k_miss}) + 1")
+}
+
+@test
+fun test_quant_drift_qwen2_code() {
+    let oracle = load_oracle("qwen2-0.5b", "code")?
+    let q4k = apr_run_json("models/qwen2-0.5b-q4k.apr", oracle.prompt)?
+    let q6k = apr_run_json("models/qwen2-0.5b-q6k.apr", oracle.prompt)?
+    let q4k_miss = count_mismatches(q4k.tokens, oracle.tokens)
+    let q6k_miss = count_mismatches(q6k.tokens, oracle.tokens)
+    assert(q6k_miss <= q4k_miss + 1, f"Qwen2 code: Q6K ({q6k_miss}) should be ≤ Q4K ({q4k_miss}) + 1")
+}
+
+@test
+fun test_quant_drift_qwen2_greeting() {
+    let oracle = load_oracle("qwen2-0.5b", "greeting")?
+    let q4k = apr_run_json("models/qwen2-0.5b-q4k.apr", oracle.prompt)?
+    let q6k = apr_run_json("models/qwen2-0.5b-q6k.apr", oracle.prompt)?
+    let q4k_miss = count_mismatches(q4k.tokens, oracle.tokens)
+    let q6k_miss = count_mismatches(q6k.tokens, oracle.tokens)
+    assert(q6k_miss <= q4k_miss + 1, f"Qwen2 greeting: Q6K ({q6k_miss}) should be ≤ Q4K ({q4k_miss}) + 1")
+}
+
+// --- GPT-2 drift ordering ---
+
+@test
+fun test_quant_drift_gpt2_arithmetic() {
+    let oracle = load_oracle("gpt2-124m", "arithmetic")?
+    let q4k = apr_run_json("models/gpt2-124m-q4k.apr", oracle.prompt)?
+    let q6k = apr_run_json("models/gpt2-124m-q6k.apr", oracle.prompt)?
+    let q4k_miss = count_mismatches(q4k.tokens, oracle.tokens)
+    let q6k_miss = count_mismatches(q6k.tokens, oracle.tokens)
+    assert(q6k_miss <= q4k_miss + 1, f"GPT-2 arithmetic: Q6K ({q6k_miss}) should be ≤ Q4K ({q4k_miss}) + 1")
+}
+
+@test
+fun test_quant_drift_gpt2_completion() {
+    let oracle = load_oracle("gpt2-124m", "completion")?
+    let q4k = apr_run_json("models/gpt2-124m-q4k.apr", oracle.prompt)?
+    let q6k = apr_run_json("models/gpt2-124m-q6k.apr", oracle.prompt)?
+    let q4k_miss = count_mismatches(q4k.tokens, oracle.tokens)
+    let q6k_miss = count_mismatches(q6k.tokens, oracle.tokens)
+    assert(q6k_miss <= q4k_miss + 1, f"GPT-2 completion: Q6K ({q6k_miss}) should be ≤ Q4K ({q4k_miss}) + 1")
+}
+
+@test
+fun test_quant_drift_gpt2_code() {
+    let oracle = load_oracle("gpt2-124m", "code")?
+    let q4k = apr_run_json("models/gpt2-124m-q4k.apr", oracle.prompt)?
+    let q6k = apr_run_json("models/gpt2-124m-q6k.apr", oracle.prompt)?
+    let q4k_miss = count_mismatches(q4k.tokens, oracle.tokens)
+    let q6k_miss = count_mismatches(q6k.tokens, oracle.tokens)
+    assert(q6k_miss <= q4k_miss + 1, f"GPT-2 code: Q6K ({q6k_miss}) should be ≤ Q4K ({q4k_miss}) + 1")
+}
+
+@test
+fun test_quant_drift_gpt2_greeting() {
+    let oracle = load_oracle("gpt2-124m", "greeting")?
+    let q4k = apr_run_json("models/gpt2-124m-q4k.apr", oracle.prompt)?
+    let q6k = apr_run_json("models/gpt2-124m-q6k.apr", oracle.prompt)?
+    let q4k_miss = count_mismatches(q4k.tokens, oracle.tokens)
+    let q6k_miss = count_mismatches(q6k.tokens, oracle.tokens)
+    assert(q6k_miss <= q4k_miss + 1, f"GPT-2 greeting: Q6K ({q6k_miss}) should be ≤ Q4K ({q4k_miss}) + 1")
+}

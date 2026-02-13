@@ -1,0 +1,232 @@
+// test_token_parity.ruchy — Token match bound tests
+//
+// Verifies that quantized models (Q4K, Q6K) produce tokens within bounded
+// mismatch tolerance vs the oracle golden outputs.
+// - Q4K: ≤5 mismatches per 32 tokens
+// - Q6K: ≤3 mismatches per 32 tokens
+
+import std::fs
+import std::process
+
+// --- Helpers (ruchy has no file imports, must be inline) ---
+
+fun run_apr(args) {
+    let (stdout, stderr, code) = process::execute("apr", args)?
+    if code != 0 { return Err(f"apr failed ({code}): {stderr}") }
+    Ok(stdout)
+}
+
+fun apr_run_json(model_path, prompt) {
+    let stdout = run_apr(["run", model_path, "-p", prompt, "-n", "32", "--json"])?
+    Ok(parse_json(stdout))
+}
+
+fun load_oracle(slug, prompt_name) {
+    let text = fs::read_to_string(f"oracle/{slug}/{prompt_name}.json")?
+    Ok(parse_json(text))
+}
+
+fun count_mismatches(a, b) {
+    let min_len = if a.len() < b.len() { a.len() } else { b.len() }
+    let mut m = 0
+    for i in range(0, min_len) { if a[i] != b[i] { m = m + 1 } }
+    let d = a.len() - b.len()
+    if d < 0 { d = -d }
+    m + d
+}
+
+// --- Q4K token parity tests (≤5 mismatches) ---
+
+@test
+fun test_q4k_token_parity_smollm_arithmetic() {
+    let oracle = load_oracle("smollm-135m", "arithmetic")?
+    let result = apr_run_json("models/smollm-135m-q4k.apr", oracle.prompt)?
+    let mismatches = count_mismatches(result.tokens, oracle.tokens)
+    assert(mismatches <= 5, f"SmolLM Q4K arithmetic: {mismatches} mismatches (max 5)")
+}
+
+@test
+fun test_q4k_token_parity_smollm_completion() {
+    let oracle = load_oracle("smollm-135m", "completion")?
+    let result = apr_run_json("models/smollm-135m-q4k.apr", oracle.prompt)?
+    let mismatches = count_mismatches(result.tokens, oracle.tokens)
+    assert(mismatches <= 5, f"SmolLM Q4K completion: {mismatches} mismatches (max 5)")
+}
+
+@test
+fun test_q4k_token_parity_smollm_code() {
+    let oracle = load_oracle("smollm-135m", "code")?
+    let result = apr_run_json("models/smollm-135m-q4k.apr", oracle.prompt)?
+    let mismatches = count_mismatches(result.tokens, oracle.tokens)
+    assert(mismatches <= 5, f"SmolLM Q4K code: {mismatches} mismatches (max 5)")
+}
+
+@test
+fun test_q4k_token_parity_smollm_greeting() {
+    let oracle = load_oracle("smollm-135m", "greeting")?
+    let result = apr_run_json("models/smollm-135m-q4k.apr", oracle.prompt)?
+    let mismatches = count_mismatches(result.tokens, oracle.tokens)
+    assert(mismatches <= 5, f"SmolLM Q4K greeting: {mismatches} mismatches (max 5)")
+}
+
+@test
+fun test_q4k_token_parity_qwen2_arithmetic() {
+    let oracle = load_oracle("qwen2-0.5b", "arithmetic")?
+    let result = apr_run_json("models/qwen2-0.5b-q4k.apr", oracle.prompt)?
+    let mismatches = count_mismatches(result.tokens, oracle.tokens)
+    assert(mismatches <= 5, f"Qwen2 Q4K arithmetic: {mismatches} mismatches (max 5)")
+}
+
+@test
+fun test_q4k_token_parity_qwen2_completion() {
+    let oracle = load_oracle("qwen2-0.5b", "completion")?
+    let result = apr_run_json("models/qwen2-0.5b-q4k.apr", oracle.prompt)?
+    let mismatches = count_mismatches(result.tokens, oracle.tokens)
+    assert(mismatches <= 5, f"Qwen2 Q4K completion: {mismatches} mismatches (max 5)")
+}
+
+@test
+fun test_q4k_token_parity_qwen2_code() {
+    let oracle = load_oracle("qwen2-0.5b", "code")?
+    let result = apr_run_json("models/qwen2-0.5b-q4k.apr", oracle.prompt)?
+    let mismatches = count_mismatches(result.tokens, oracle.tokens)
+    assert(mismatches <= 5, f"Qwen2 Q4K code: {mismatches} mismatches (max 5)")
+}
+
+@test
+fun test_q4k_token_parity_qwen2_greeting() {
+    let oracle = load_oracle("qwen2-0.5b", "greeting")?
+    let result = apr_run_json("models/qwen2-0.5b-q4k.apr", oracle.prompt)?
+    let mismatches = count_mismatches(result.tokens, oracle.tokens)
+    assert(mismatches <= 5, f"Qwen2 Q4K greeting: {mismatches} mismatches (max 5)")
+}
+
+@test
+fun test_q4k_token_parity_gpt2_arithmetic() {
+    let oracle = load_oracle("gpt2-124m", "arithmetic")?
+    let result = apr_run_json("models/gpt2-124m-q4k.apr", oracle.prompt)?
+    let mismatches = count_mismatches(result.tokens, oracle.tokens)
+    assert(mismatches <= 5, f"GPT-2 Q4K arithmetic: {mismatches} mismatches (max 5)")
+}
+
+@test
+fun test_q4k_token_parity_gpt2_completion() {
+    let oracle = load_oracle("gpt2-124m", "completion")?
+    let result = apr_run_json("models/gpt2-124m-q4k.apr", oracle.prompt)?
+    let mismatches = count_mismatches(result.tokens, oracle.tokens)
+    assert(mismatches <= 5, f"GPT-2 Q4K completion: {mismatches} mismatches (max 5)")
+}
+
+@test
+fun test_q4k_token_parity_gpt2_code() {
+    let oracle = load_oracle("gpt2-124m", "code")?
+    let result = apr_run_json("models/gpt2-124m-q4k.apr", oracle.prompt)?
+    let mismatches = count_mismatches(result.tokens, oracle.tokens)
+    assert(mismatches <= 5, f"GPT-2 Q4K code: {mismatches} mismatches (max 5)")
+}
+
+@test
+fun test_q4k_token_parity_gpt2_greeting() {
+    let oracle = load_oracle("gpt2-124m", "greeting")?
+    let result = apr_run_json("models/gpt2-124m-q4k.apr", oracle.prompt)?
+    let mismatches = count_mismatches(result.tokens, oracle.tokens)
+    assert(mismatches <= 5, f"GPT-2 Q4K greeting: {mismatches} mismatches (max 5)")
+}
+
+// --- Q6K token parity tests (≤3 mismatches) ---
+
+@test
+fun test_q6k_token_parity_smollm_arithmetic() {
+    let oracle = load_oracle("smollm-135m", "arithmetic")?
+    let result = apr_run_json("models/smollm-135m-q6k.apr", oracle.prompt)?
+    let mismatches = count_mismatches(result.tokens, oracle.tokens)
+    assert(mismatches <= 3, f"SmolLM Q6K arithmetic: {mismatches} mismatches (max 3)")
+}
+
+@test
+fun test_q6k_token_parity_smollm_completion() {
+    let oracle = load_oracle("smollm-135m", "completion")?
+    let result = apr_run_json("models/smollm-135m-q6k.apr", oracle.prompt)?
+    let mismatches = count_mismatches(result.tokens, oracle.tokens)
+    assert(mismatches <= 3, f"SmolLM Q6K completion: {mismatches} mismatches (max 3)")
+}
+
+@test
+fun test_q6k_token_parity_smollm_code() {
+    let oracle = load_oracle("smollm-135m", "code")?
+    let result = apr_run_json("models/smollm-135m-q6k.apr", oracle.prompt)?
+    let mismatches = count_mismatches(result.tokens, oracle.tokens)
+    assert(mismatches <= 3, f"SmolLM Q6K code: {mismatches} mismatches (max 3)")
+}
+
+@test
+fun test_q6k_token_parity_smollm_greeting() {
+    let oracle = load_oracle("smollm-135m", "greeting")?
+    let result = apr_run_json("models/smollm-135m-q6k.apr", oracle.prompt)?
+    let mismatches = count_mismatches(result.tokens, oracle.tokens)
+    assert(mismatches <= 3, f"SmolLM Q6K greeting: {mismatches} mismatches (max 3)")
+}
+
+@test
+fun test_q6k_token_parity_qwen2_arithmetic() {
+    let oracle = load_oracle("qwen2-0.5b", "arithmetic")?
+    let result = apr_run_json("models/qwen2-0.5b-q6k.apr", oracle.prompt)?
+    let mismatches = count_mismatches(result.tokens, oracle.tokens)
+    assert(mismatches <= 3, f"Qwen2 Q6K arithmetic: {mismatches} mismatches (max 3)")
+}
+
+@test
+fun test_q6k_token_parity_qwen2_completion() {
+    let oracle = load_oracle("qwen2-0.5b", "completion")?
+    let result = apr_run_json("models/qwen2-0.5b-q6k.apr", oracle.prompt)?
+    let mismatches = count_mismatches(result.tokens, oracle.tokens)
+    assert(mismatches <= 3, f"Qwen2 Q6K completion: {mismatches} mismatches (max 3)")
+}
+
+@test
+fun test_q6k_token_parity_qwen2_code() {
+    let oracle = load_oracle("qwen2-0.5b", "code")?
+    let result = apr_run_json("models/qwen2-0.5b-q6k.apr", oracle.prompt)?
+    let mismatches = count_mismatches(result.tokens, oracle.tokens)
+    assert(mismatches <= 3, f"Qwen2 Q6K code: {mismatches} mismatches (max 3)")
+}
+
+@test
+fun test_q6k_token_parity_qwen2_greeting() {
+    let oracle = load_oracle("qwen2-0.5b", "greeting")?
+    let result = apr_run_json("models/qwen2-0.5b-q6k.apr", oracle.prompt)?
+    let mismatches = count_mismatches(result.tokens, oracle.tokens)
+    assert(mismatches <= 3, f"Qwen2 Q6K greeting: {mismatches} mismatches (max 3)")
+}
+
+@test
+fun test_q6k_token_parity_gpt2_arithmetic() {
+    let oracle = load_oracle("gpt2-124m", "arithmetic")?
+    let result = apr_run_json("models/gpt2-124m-q6k.apr", oracle.prompt)?
+    let mismatches = count_mismatches(result.tokens, oracle.tokens)
+    assert(mismatches <= 3, f"GPT-2 Q6K arithmetic: {mismatches} mismatches (max 3)")
+}
+
+@test
+fun test_q6k_token_parity_gpt2_completion() {
+    let oracle = load_oracle("gpt2-124m", "completion")?
+    let result = apr_run_json("models/gpt2-124m-q6k.apr", oracle.prompt)?
+    let mismatches = count_mismatches(result.tokens, oracle.tokens)
+    assert(mismatches <= 3, f"GPT-2 Q6K completion: {mismatches} mismatches (max 3)")
+}
+
+@test
+fun test_q6k_token_parity_gpt2_code() {
+    let oracle = load_oracle("gpt2-124m", "code")?
+    let result = apr_run_json("models/gpt2-124m-q6k.apr", oracle.prompt)?
+    let mismatches = count_mismatches(result.tokens, oracle.tokens)
+    assert(mismatches <= 3, f"GPT-2 Q6K code: {mismatches} mismatches (max 3)")
+}
+
+@test
+fun test_q6k_token_parity_gpt2_greeting() {
+    let oracle = load_oracle("gpt2-124m", "greeting")?
+    let result = apr_run_json("models/gpt2-124m-q6k.apr", oracle.prompt)?
+    let mismatches = count_mismatches(result.tokens, oracle.tokens)
+    assert(mismatches <= 3, f"GPT-2 Q6K greeting: {mismatches} mismatches (max 3)")
+}

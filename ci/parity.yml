@@ -1,0 +1,64 @@
+name: Model Parity Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 6 * * 1'  # Weekly Monday 6am UTC
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  parity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo bin
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin
+          key: cargo-bin-${{ runner.os }}-${{ hashFiles('ci/setup.sh') }}
+          restore-keys: cargo-bin-${{ runner.os }}-
+
+      - name: Cache models
+        uses: actions/cache@v4
+        with:
+          path: models/
+          key: models-${{ hashFiles('Makefile') }}
+          restore-keys: models-
+
+      - name: Install tools
+        run: bash ci/setup.sh
+
+      - name: Pull models
+        run: make pull
+
+      - name: Convert models
+        run: make convert
+
+      - name: Run canary tests
+        run: make test-canary
+
+      - name: Run token parity tests
+        run: make test-token
+
+      - name: Run quantization drift tests
+        run: make test-quant
+
+      - name: Run format roundtrip tests
+        run: make test-roundtrip
+
+      - name: Run runtime parity tests
+        run: make test-runtime
+
+      - name: Run perplexity tests
+        run: make test-ppl

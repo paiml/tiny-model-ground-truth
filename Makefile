@@ -1,4 +1,4 @@
-.PHONY: oracle pull convert test test-canary test-token test-quant test-roundtrip test-runtime test-ppl test-property ci clean
+.PHONY: oracle pull convert check check-canary check-token check-drift check-roundtrip check-ppl ticket ci clean
 
 oracle:
 	uv run python scripts/gen_oracle.py --all
@@ -20,25 +20,26 @@ convert:
 	apr import hf://openai-community/gpt2 --quantize int8 -o models/gpt2-124m-int8.apr
 	apr export models/gpt2-124m-int4.apr --format gguf --skip-contract -o models/gpt2-124m-int4.gguf
 
-test:
-	ruchy test tests/ --parallel
+# Real parity checks (actually runs apr inference)
+check:
+	uv run python scripts/parity_check.py
 
-test-canary:
-	ruchy test tests/test_canary.ruchy
-test-token:
-	ruchy test tests/test_token_parity.ruchy
-test-quant:
-	ruchy test tests/test_quant_drift.ruchy
-test-roundtrip:
-	ruchy test tests/test_format_roundtrip.ruchy
-test-runtime:
-	ruchy test tests/test_runtime_parity.ruchy
-test-ppl:
-	ruchy test tests/test_perplexity.ruchy
-test-property:
-	ruchy test tests/test_property.ruchy
+check-canary:
+	uv run python scripts/parity_check.py --check canary
+check-token:
+	uv run python scripts/parity_check.py --check token
+check-drift:
+	uv run python scripts/parity_check.py --check drift
+check-roundtrip:
+	uv run python scripts/parity_check.py --check roundtrip
+check-ppl:
+	uv run python scripts/parity_check.py --check ppl
 
-ci: pull convert test
+# Generate GitHub issue markdown for failures
+ticket:
+	uv run python scripts/parity_check.py --ticket
+
+ci: pull convert check
 
 clean:
 	rm -f models/*.apr models/*.gguf

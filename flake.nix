@@ -16,13 +16,12 @@
             python311
             uv
             rustup
-            cmake
             gnumake
           ];
 
           shellHook = ''
             echo "tiny-model-ground-truth dev shell"
-            echo "Run: make pull && make convert && make test"
+            echo "Run: make pull && make convert && make check"
           '';
         };
       });

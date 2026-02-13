@@ -37,38 +37,41 @@ Each oracle JSON file (`oracle/{slug}/{prompt_name}.json`) contains:
 | `max_new_tokens` | int | Always 32 |
 | `do_sample` | bool | Always false (greedy) |
 
-## Ruchy Test Helpers
+## Parity Checker (`scripts/parity_check.py`)
 
-Each `.ruchy` test file includes these inline helpers (ruchy has no file imports):
+### Usage
 
-### `run_apr(args: string[]) -> Result<string>`
-Execute `apr` CLI with arguments. Returns stdout on success, error on non-zero exit.
+```bash
+uv run python scripts/parity_check.py                     # All checks
+uv run python scripts/parity_check.py --model smollm-135m  # Single model
+uv run python scripts/parity_check.py --check canary       # Single suite
+uv run python scripts/parity_check.py --ticket             # GitHub issue markdown
+```
 
-### `apr_run_json(model_path: string, prompt: string) -> Result<object>`
-Run inference: `apr run <model> -p <prompt> -n 32 --json`. Returns parsed JSON.
+### Check Suites
 
-### `load_oracle(slug: string, prompt_name: string) -> Result<object>`
-Load oracle JSON from `oracle/{slug}/{prompt_name}.json`. Returns parsed JSON.
-
-### `count_mismatches(a: int[], b: int[]) -> int`
-Count token-level mismatches between two token arrays. Includes length difference.
-
-### `is_available(bin: string) -> Result<bool>`
-Check if a binary is available in PATH (via `which`).
+| Suite | Checks | Description |
+|-------|--------|-------------|
+| `canary` | 12 | Int8 text must exactly match oracle |
+| `token` | 24 | Int4 ≤5/32 mismatches, Int8 ≤3/32 mismatches |
+| `drift` | 12 | Int8 mismatches ≤ Int4 mismatches + 1 |
+| `roundtrip` | 6 | APR → GGUF → reimport produces identical tokens |
+| `ppl` | 9 | PPL within ceiling, Int4/Int8 drift < 0.5 |
 
 ## Makefile Targets
 
-| Target | Dependencies | Description |
-|--------|-------------|-------------|
-| `oracle` | Python env | Generate golden JSON from HuggingFace |
-| `pull` | Network | Download 3 models from HuggingFace |
-| `convert` | `pull` | Import to APR (Int4/Int8), export GGUF |
-| `test` | `convert` | Run all 6 ruchy test suites in parallel |
-| `test-canary` | `convert` | Run canary regression tests only |
-| `test-token` | `convert` | Run token parity tests only |
-| `test-quant` | `convert` | Run quant drift tests only |
-| `test-roundtrip` | `convert` | Run format roundtrip tests only |
-| `test-runtime` | `convert` | Run runtime parity tests only |
-| `test-ppl` | `convert` | Run perplexity tests only |
-| `ci` | Network | Full pipeline: pull + convert + test |
-| `clean` | None | Remove generated model files |
+| Target | Description |
+|--------|-------------|
+| `oracle` | Generate golden JSON from HuggingFace |
+| `pull` | Download 3 models from HuggingFace |
+| `convert` | Import to APR (Int4/Int8), export GGUF |
+| `check` | Run all 59 parity checks |
+| `check-canary` | Golden output regression only |
+| `check-token` | Token parity bounds only |
+| `check-drift` | Quantization drift ordering only |
+| `check-roundtrip` | Format roundtrip only |
+| `check-ppl` | Perplexity bounds only |
+| `ticket` | Generate GitHub issue markdown for failures |
+| `ci` | Full pipeline: pull + convert + check |
+| `recheck` | After apr upgrades: clean + convert + check |
+| `clean` | Remove generated model files |

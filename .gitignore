@@ -3,7 +3,4 @@ models/
 .venv/
 __pycache__/
 *.pyc
-.pytest_cache/
-*.rlib
-a.out
 .DS_Store

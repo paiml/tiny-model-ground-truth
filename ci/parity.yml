@@ -1,10 +1,10 @@
-name: Model Parity Tests
+name: Model Parity Checks
 
 on:
   push:
-    branches: [main]
+    branches: [master]
   pull_request:
-    branches: [main]
+    branches: [master]
   schedule:
     - cron: '0 6 * * 1'  # Weekly Monday 6am UTC
 
@@ -21,6 +21,9 @@ jobs:
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
 
       - name: Cache cargo bin
         uses: actions/cache@v4
@@ -45,20 +48,9 @@ jobs:
       - name: Convert models
         run: make convert
 
-      - name: Run canary tests
-        run: make test-canary
+      - name: Run parity checks
+        run: make check
 
-      - name: Run token parity tests
-        run: make test-token
-
-      - name: Run quantization drift tests
-        run: make test-quant
-
-      - name: Run format roundtrip tests
-        run: make test-roundtrip
-
-      - name: Run runtime parity tests
-        run: make test-runtime
-
-      - name: Run perplexity tests
-        run: make test-ppl
+      - name: Generate ticket on failure
+        if: failure()
+        run: make ticket

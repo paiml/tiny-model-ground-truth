@@ -1,8 +1,10 @@
 # tiny-model-ground-truth
 
-[![Methodology](https://img.shields.io/badge/methodology-Popperian%20falsification-red)](https://en.wikipedia.org/wiki/Falsifiability) [![Models](https://img.shields.io/badge/models-3-blue)]() [![Tests](https://img.shields.io/badge/tests-75%20cases-green)]() [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![Methodology](https://img.shields.io/badge/methodology-Popperian%20falsification-red)](https://en.wikipedia.org/wiki/Falsifiability) [![Models](https://img.shields.io/badge/models-3-blue)]() [![Parity](https://img.shields.io/badge/parity-0%2F59%20passing-red)]() [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
 **Thesis**: Given a tiny model from HuggingFace, every format conversion and runtime engine in the Sovereign AI Stack must produce token-identical greedy outputs (or bounded quantization drift). A single failure proves a bug.
+
+**Current status**: **0/59 checks passing**. Three critical bugs found in aprender/realizar — see [Filed Issues](#filed-issues).
 
 See [CLAIMS.md](CLAIMS.md) for pre-registered falsifiable claims and design rationale (ADRs).
 
@@ -11,14 +13,14 @@ See [CLAIMS.md](CLAIMS.md) for pre-registered falsifiable claims and design rati
 ```bash
 make pull      # Download 3 tiny models (~1.5GB)
 make convert   # Import to APR (Int4/Int8) + export GGUF
-make test      # Run all 75 parity tests
+make check     # Run all parity checks (actually invokes apr inference)
+make ticket    # Generate GitHub issue markdown for failures
 ```
 
 ### Requirements
 
 - **Hardware**: Any x86_64 or ARM64 machine with ≥4GB RAM. CPU-only (no GPU required).
-- **Software**: `apr` (v0.2.16+), `ruchy` (v4.0.0+), `uv` (v0.5+), Python 3.11+
-- **Optional**: `llama-cli` for cross-runtime parity tests (gracefully skipped if absent)
+- **Software**: `apr` (v0.2.16+), `uv` (v0.5+), Python 3.11+
 - **Disk**: ~5GB for models directory
 
 ### Environment Reproducibility
@@ -32,25 +34,32 @@ bash ci/setup.sh   # Install apr, ruchy
 uv sync            # Install Python deps (locked via uv.lock)
 ```
 
-## Parity Matrix
+## Parity Matrix (Current Results)
 
-| Model | APR Int4 | APR Int8 | GGUF Int4 | llama.cpp | PPL |
-|-------|----------|----------|-----------|-----------|-----|
-| SmolLM-135M (135M params) | ≤5/32 mismatch | exact | roundtrip exact | skipped | <20.0 |
-| Qwen2-0.5B (500M params) | ≤5/32 mismatch | exact | roundtrip exact | skipped | <15.0 |
-| GPT-2 124M (124M params) | ≤5/32 mismatch | exact | roundtrip exact | skipped | <30.0 |
+| Model | APR Int4 | APR Int8 | GGUF Roundtrip | PPL |
+|-------|----------|----------|----------------|-----|
+| SmolLM-135M | **FAIL** all-zero embeddings | **FAIL** NaN/Inf corruption | **FAIL** (blocked) | **FAIL** (blocked) |
+| Qwen2-0.5B | **FAIL** all-zero embeddings | **FAIL** NaN/Inf corruption | **FAIL** (blocked) | **FAIL** (blocked) |
+| GPT-2 124M | **FAIL** PMAT-237 contract | **FAIL** PMAT-237 contract | **FAIL** PMAT-237 contract | **FAIL** (blocked) |
 
-## Test Suites
+## Filed Issues
 
-| Suite | Tests | What it tests |
-|-------|-------|--------------|
-| `test_canary` | 12 | Golden output regression — catches inference regressions |
-| `test_token_parity` | 24 | Int4/Int8 token mismatch bounds vs oracle |
-| `test_quant_drift` | 12 | Int8 strictly better than Int4 ordering |
-| `test_format_roundtrip` | 6 | APR → GGUF → reimport produces identical tokens |
-| `test_runtime_parity` | 12 | `apr` vs `llama.cpp` on same GGUF — exact match |
-| `test_perplexity` | 9 | PPL within model-specific bounds, Int4/Int8 diff < 0.5 |
-| **Total** | **75** | |
+| Issue | Model(s) | Bug | Severity |
+|-------|----------|-----|----------|
+| [paiml/aprender#231](https://github.com/paiml/aprender/issues/231) | SmolLM, Qwen2 | Int8 embedding NaN/Inf + shape mismatch | Critical |
+| [paiml/aprender#232](https://github.com/paiml/aprender/issues/232) | SmolLM, Qwen2 | Int4 all-zero embedding tensors | Critical |
+| [paiml/aprender#233](https://github.com/paiml/aprender/issues/233) | GPT-2 | Missing `wte.weight` tensor name + `wpe.weight` density violation | High |
+
+## Check Suites
+
+| Suite | Checks | What it tests |
+|-------|--------|--------------|
+| `check-canary` | 12 | Golden output regression — Int8 text must exactly match oracle |
+| `check-token` | 24 | Int4/Int8 token mismatch bounds (≤5/32 and ≤3/32) |
+| `check-drift` | 12 | Int8 mismatches ≤ Int4 mismatches + 1 |
+| `check-roundtrip` | 6 | APR → GGUF → reimport produces identical tokens |
+| `check-ppl` | 9 | PPL within model-specific bounds, Int4/Int8 diff < 0.5 |
+| **Total** | **59** | **0 passing** |
 
 ## Methodology
 
@@ -123,16 +132,18 @@ Each oracle JSON file contains:
 ## Architecture
 
 ```
-Python (uv)                    Ruchy Tests
-───────────                    ───────────
-gen_oracle.py ──► oracle/*.json ◄── test_canary.ruchy
-  (rare, manual)                    test_token_parity.ruchy
-                                    test_quant_drift.ruchy
-                apr CLI             test_format_roundtrip.ruchy
-                ───────             test_runtime_parity.ruchy
-                pull, import,       test_perplexity.ruchy
-                export, run,
-                eval, diff
+Python (uv)                    Parity Checker
+───────────                    ──────────────
+gen_oracle.py ──► oracle/*.json ◄── parity_check.py
+  (rare, manual)                      │
+                                      ▼
+                              subprocess: apr run --json
+                              subprocess: apr eval --json
+                              subprocess: apr import
+                                      │
+                                      ▼
+                              compare tokens/text vs oracle
+                              generate GitHub issue markdown
 ```
 
 ## Reproducibility

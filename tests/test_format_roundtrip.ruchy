@@ -32,15 +32,15 @@ fun cleanup(path) {
 // --- SmolLM-135M roundtrip ---
 
 @test
-fun test_roundtrip_smollm_q4k() {
-    let reimported = "models/smollm-135m-q4k-reimported.apr"
+fun test_roundtrip_smollm_int4() {
+    let reimported = "models/smollm-135m-int4-reimported.apr"
 
     // GGUF → reimport to APR
-    run_apr(["import", "models/smollm-135m-q4k.gguf", "-o", reimported])?
+    run_apr(["import", "models/smollm-135m-int4.gguf", "-o", reimported])?
 
     // Run both on same prompt
     let oracle = load_oracle("smollm-135m", "completion")?
-    let original = apr_run_json("models/smollm-135m-q4k.apr", oracle.prompt)?
+    let original = apr_run_json("models/smollm-135m-int4.apr", oracle.prompt)?
     let roundtripped = apr_run_json(reimported, oracle.prompt)?
 
     // Clean up
@@ -48,89 +48,89 @@ fun test_roundtrip_smollm_q4k() {
 
     // Assert identical tokens
     assert_eq(roundtripped.tokens, original.tokens,
-        f"SmolLM Q4K roundtrip: tokens differ after APR→GGUF→APR")
+        f"SmolLM Int4 roundtrip: tokens differ after APR→GGUF→APR")
 }
 
 @test
-fun test_roundtrip_smollm_q4k_arithmetic() {
-    let reimported = "models/smollm-135m-q4k-reimported-arith.apr"
+fun test_roundtrip_smollm_int4_arithmetic() {
+    let reimported = "models/smollm-135m-int4-reimported-arith.apr"
 
-    run_apr(["import", "models/smollm-135m-q4k.gguf", "-o", reimported])?
+    run_apr(["import", "models/smollm-135m-int4.gguf", "-o", reimported])?
 
     let oracle = load_oracle("smollm-135m", "arithmetic")?
-    let original = apr_run_json("models/smollm-135m-q4k.apr", oracle.prompt)?
+    let original = apr_run_json("models/smollm-135m-int4.apr", oracle.prompt)?
     let roundtripped = apr_run_json(reimported, oracle.prompt)?
 
     cleanup(reimported)?
 
     assert_eq(roundtripped.tokens, original.tokens,
-        f"SmolLM Q4K roundtrip arithmetic: tokens differ after APR→GGUF→APR")
+        f"SmolLM Int4 roundtrip arithmetic: tokens differ after APR→GGUF→APR")
 }
 
 // --- Qwen2-0.5B roundtrip ---
 
 @test
-fun test_roundtrip_qwen2_q4k() {
-    let reimported = "models/qwen2-0.5b-q4k-reimported.apr"
+fun test_roundtrip_qwen2_int4() {
+    let reimported = "models/qwen2-0.5b-int4-reimported.apr"
 
-    run_apr(["import", "models/qwen2-0.5b-q4k.gguf", "-o", reimported])?
+    run_apr(["import", "models/qwen2-0.5b-int4.gguf", "-o", reimported])?
 
     let oracle = load_oracle("qwen2-0.5b", "completion")?
-    let original = apr_run_json("models/qwen2-0.5b-q4k.apr", oracle.prompt)?
+    let original = apr_run_json("models/qwen2-0.5b-int4.apr", oracle.prompt)?
     let roundtripped = apr_run_json(reimported, oracle.prompt)?
 
     cleanup(reimported)?
 
     assert_eq(roundtripped.tokens, original.tokens,
-        f"Qwen2 Q4K roundtrip: tokens differ after APR→GGUF→APR")
+        f"Qwen2 Int4 roundtrip: tokens differ after APR→GGUF→APR")
 }
 
 @test
-fun test_roundtrip_qwen2_q4k_arithmetic() {
-    let reimported = "models/qwen2-0.5b-q4k-reimported-arith.apr"
+fun test_roundtrip_qwen2_int4_arithmetic() {
+    let reimported = "models/qwen2-0.5b-int4-reimported-arith.apr"
 
-    run_apr(["import", "models/qwen2-0.5b-q4k.gguf", "-o", reimported])?
+    run_apr(["import", "models/qwen2-0.5b-int4.gguf", "-o", reimported])?
 
     let oracle = load_oracle("qwen2-0.5b", "arithmetic")?
-    let original = apr_run_json("models/qwen2-0.5b-q4k.apr", oracle.prompt)?
+    let original = apr_run_json("models/qwen2-0.5b-int4.apr", oracle.prompt)?
     let roundtripped = apr_run_json(reimported, oracle.prompt)?
 
     cleanup(reimported)?
 
     assert_eq(roundtripped.tokens, original.tokens,
-        f"Qwen2 Q4K roundtrip arithmetic: tokens differ after APR→GGUF→APR")
+        f"Qwen2 Int4 roundtrip arithmetic: tokens differ after APR→GGUF→APR")
 }
 
 // --- GPT-2 roundtrip ---
 
 @test
-fun test_roundtrip_gpt2_q4k() {
-    let reimported = "models/gpt2-124m-q4k-reimported.apr"
+fun test_roundtrip_gpt2_int4() {
+    let reimported = "models/gpt2-124m-int4-reimported.apr"
 
-    run_apr(["import", "models/gpt2-124m-q4k.gguf", "-o", reimported])?
+    run_apr(["import", "models/gpt2-124m-int4.gguf", "-o", reimported])?
 
     let oracle = load_oracle("gpt2-124m", "completion")?
-    let original = apr_run_json("models/gpt2-124m-q4k.apr", oracle.prompt)?
+    let original = apr_run_json("models/gpt2-124m-int4.apr", oracle.prompt)?
     let roundtripped = apr_run_json(reimported, oracle.prompt)?
 
     cleanup(reimported)?
 
     assert_eq(roundtripped.tokens, original.tokens,
-        f"GPT-2 Q4K roundtrip: tokens differ after APR→GGUF→APR")
+        f"GPT-2 Int4 roundtrip: tokens differ after APR→GGUF→APR")
 }
 
 @test
-fun test_roundtrip_gpt2_q4k_arithmetic() {
-    let reimported = "models/gpt2-124m-q4k-reimported-arith.apr"
+fun test_roundtrip_gpt2_int4_arithmetic() {
+    let reimported = "models/gpt2-124m-int4-reimported-arith.apr"
 
-    run_apr(["import", "models/gpt2-124m-q4k.gguf", "-o", reimported])?
+    run_apr(["import", "models/gpt2-124m-int4.gguf", "-o", reimported])?
 
     let oracle = load_oracle("gpt2-124m", "arithmetic")?
-    let original = apr_run_json("models/gpt2-124m-q4k.apr", oracle.prompt)?
+    let original = apr_run_json("models/gpt2-124m-int4.apr", oracle.prompt)?
     let roundtripped = apr_run_json(reimported, oracle.prompt)?
 
     cleanup(reimported)?
 
     assert_eq(roundtripped.tokens, original.tokens,
-        f"GPT-2 Q4K roundtrip arithmetic: tokens differ after APR→GGUF→APR")
+        f"GPT-2 Int4 roundtrip arithmetic: tokens differ after APR→GGUF→APR")
 }

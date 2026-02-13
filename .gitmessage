@@ -1,0 +1,7 @@
+# Format: type: description (Refs TMGT-XXX)
+# Types: feat, fix, test, docs, refactor, ci
+#
+# Example:
+#   feat: add new model to parity matrix (Refs TMGT-005)
+#   test: add edge case prompts for GPT-2 (Refs TMGT-006)
+#   fix: relax Int4 threshold for Qwen2 code prompt (Refs TMGT-007)

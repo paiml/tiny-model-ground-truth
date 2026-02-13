@@ -1,7 +1,7 @@
 // test_perplexity.ruchy — Perplexity bound tests
 //
 // Verifies that model perplexity stays within expected bounds per model,
-// and that Q4K vs Q6K PPL difference is < 0.5.
+// and that Int4 vs Int8 PPL difference is < 0.5.
 //
 // Model-specific PPL ceilings:
 //   SmolLM-135M: 20.0
@@ -30,74 +30,74 @@ fun abs_diff(a, b) {
 // --- SmolLM-135M perplexity ---
 
 @test
-fun test_ppl_smollm_q4k_bound() {
-    let result = apr_eval_json("models/smollm-135m-q4k.apr")?
+fun test_ppl_smollm_int4_bound() {
+    let result = apr_eval_json("models/smollm-135m-int4.apr")?
     assert(result.perplexity < 20.0,
-        f"SmolLM Q4K PPL {result.perplexity} exceeds ceiling 20.0")
+        f"SmolLM Int4 PPL {result.perplexity} exceeds ceiling 20.0")
 }
 
 @test
-fun test_ppl_smollm_q6k_bound() {
-    let result = apr_eval_json("models/smollm-135m-q6k.apr")?
+fun test_ppl_smollm_int8_bound() {
+    let result = apr_eval_json("models/smollm-135m-int8.apr")?
     assert(result.perplexity < 20.0,
-        f"SmolLM Q6K PPL {result.perplexity} exceeds ceiling 20.0")
+        f"SmolLM Int8 PPL {result.perplexity} exceeds ceiling 20.0")
 }
 
 @test
-fun test_ppl_smollm_q4k_vs_q6k() {
-    let q4k = apr_eval_json("models/smollm-135m-q4k.apr")?
-    let q6k = apr_eval_json("models/smollm-135m-q6k.apr")?
-    let diff = abs_diff(q4k.perplexity, q6k.perplexity)
+fun test_ppl_smollm_int4_vs_int8() {
+    let int4 = apr_eval_json("models/smollm-135m-int4.apr")?
+    let int8 = apr_eval_json("models/smollm-135m-int8.apr")?
+    let diff = abs_diff(int4.perplexity, int8.perplexity)
     assert(diff < 0.5,
-        f"SmolLM Q4K/Q6K PPL diff {diff} exceeds 0.5 (Q4K={q4k.perplexity}, Q6K={q6k.perplexity})")
+        f"SmolLM Int4/Int8 PPL diff {diff} exceeds 0.5 (Int4={int4.perplexity}, Int8={int8.perplexity})")
 }
 
 // --- Qwen2-0.5B perplexity ---
 
 @test
-fun test_ppl_qwen2_q4k_bound() {
-    let result = apr_eval_json("models/qwen2-0.5b-q4k.apr")?
+fun test_ppl_qwen2_int4_bound() {
+    let result = apr_eval_json("models/qwen2-0.5b-int4.apr")?
     assert(result.perplexity < 15.0,
-        f"Qwen2 Q4K PPL {result.perplexity} exceeds ceiling 15.0")
+        f"Qwen2 Int4 PPL {result.perplexity} exceeds ceiling 15.0")
 }
 
 @test
-fun test_ppl_qwen2_q6k_bound() {
-    let result = apr_eval_json("models/qwen2-0.5b-q6k.apr")?
+fun test_ppl_qwen2_int8_bound() {
+    let result = apr_eval_json("models/qwen2-0.5b-int8.apr")?
     assert(result.perplexity < 15.0,
-        f"Qwen2 Q6K PPL {result.perplexity} exceeds ceiling 15.0")
+        f"Qwen2 Int8 PPL {result.perplexity} exceeds ceiling 15.0")
 }
 
 @test
-fun test_ppl_qwen2_q4k_vs_q6k() {
-    let q4k = apr_eval_json("models/qwen2-0.5b-q4k.apr")?
-    let q6k = apr_eval_json("models/qwen2-0.5b-q6k.apr")?
-    let diff = abs_diff(q4k.perplexity, q6k.perplexity)
+fun test_ppl_qwen2_int4_vs_int8() {
+    let int4 = apr_eval_json("models/qwen2-0.5b-int4.apr")?
+    let int8 = apr_eval_json("models/qwen2-0.5b-int8.apr")?
+    let diff = abs_diff(int4.perplexity, int8.perplexity)
     assert(diff < 0.5,
-        f"Qwen2 Q4K/Q6K PPL diff {diff} exceeds 0.5 (Q4K={q4k.perplexity}, Q6K={q6k.perplexity})")
+        f"Qwen2 Int4/Int8 PPL diff {diff} exceeds 0.5 (Int4={int4.perplexity}, Int8={int8.perplexity})")
 }
 
 // --- GPT-2 perplexity ---
 
 @test
-fun test_ppl_gpt2_q4k_bound() {
-    let result = apr_eval_json("models/gpt2-124m-q4k.apr")?
+fun test_ppl_gpt2_int4_bound() {
+    let result = apr_eval_json("models/gpt2-124m-int4.apr")?
     assert(result.perplexity < 30.0,
-        f"GPT-2 Q4K PPL {result.perplexity} exceeds ceiling 30.0")
+        f"GPT-2 Int4 PPL {result.perplexity} exceeds ceiling 30.0")
 }
 
 @test
-fun test_ppl_gpt2_q6k_bound() {
-    let result = apr_eval_json("models/gpt2-124m-q6k.apr")?
+fun test_ppl_gpt2_int8_bound() {
+    let result = apr_eval_json("models/gpt2-124m-int8.apr")?
     assert(result.perplexity < 30.0,
-        f"GPT-2 Q6K PPL {result.perplexity} exceeds ceiling 30.0")
+        f"GPT-2 Int8 PPL {result.perplexity} exceeds ceiling 30.0")
 }
 
 @test
-fun test_ppl_gpt2_q4k_vs_q6k() {
-    let q4k = apr_eval_json("models/gpt2-124m-q4k.apr")?
-    let q6k = apr_eval_json("models/gpt2-124m-q6k.apr")?
-    let diff = abs_diff(q4k.perplexity, q6k.perplexity)
+fun test_ppl_gpt2_int4_vs_int8() {
+    let int4 = apr_eval_json("models/gpt2-124m-int4.apr")?
+    let int8 = apr_eval_json("models/gpt2-124m-int8.apr")?
+    let diff = abs_diff(int4.perplexity, int8.perplexity)
     assert(diff < 0.5,
-        f"GPT-2 Q4K/Q6K PPL diff {diff} exceeds 0.5 (Q4K={q4k.perplexity}, Q6K={q6k.perplexity})")
+        f"GPT-2 Int4/Int8 PPL diff {diff} exceeds 0.5 (Int4={int4.perplexity}, Int8={int8.perplexity})")
 }

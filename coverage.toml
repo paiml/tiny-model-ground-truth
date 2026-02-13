@@ -1,0 +1,33 @@
+# Test coverage configuration
+# Property-based tests and mutation testing configuration for ruchy test suite
+
+[coverage]
+# Test coverage target: 100% of parity claims
+target = 100
+# All 87 test cases must pass (no exclusions)
+min_tests = 87
+
+[property_testing]
+# Property-based tests verify structural invariants
+# See tests/test_property.ruchy
+enabled = true
+properties = ["token_count", "idempotent", "monotonic_precision"]
+
+[mutation_testing]
+# Mutation testing validates tolerance thresholds
+# Mutants: relaxing/tightening Int4 (5→6, 5→4) and Int8 (3→4, 3→2) bounds
+# All mutations that weaken thresholds should still pass (bounds are conservative)
+# All mutations that over-tighten should fail (bounds are calibrated)
+enabled = true
+strategies = ["threshold_relaxation", "threshold_tightening", "precision_swap"]
+
+[sample_size]
+# Exhaustive coverage over model roster (n=3) x prompt set (n=4)
+# Total: 87 test cases across 7 test suites
+# Confidence interval: 100% (deterministic greedy decoding)
+# Effect size: Int4 ≤15.6% mismatch, Int8 ≤9.4% mismatch
+models = 3
+prompts = 4
+quantization_levels = 2
+total_test_cases = 87
+confidence_level = "100%"

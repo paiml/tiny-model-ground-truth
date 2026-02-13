@@ -51,8 +51,8 @@ fun test_runtime_parity_smollm_arithmetic() {
     }
 
     let oracle = load_oracle("smollm-135m", "arithmetic")?
-    let apr_result = apr_run_json("models/smollm-135m-q4k.gguf", oracle.prompt)?
-    let llama_text = run_llama_cli("models/smollm-135m-q4k.gguf", oracle.prompt)?
+    let apr_result = apr_run_json("models/smollm-135m-int4.gguf", oracle.prompt)?
+    let llama_text = run_llama_cli("models/smollm-135m-int4.gguf", oracle.prompt)?
 
     assert_eq(apr_result.text.trim(), llama_text,
         f"SmolLM arithmetic: apr '{apr_result.text.trim()}' != llama-cli '{llama_text}'")
@@ -65,8 +65,8 @@ fun test_runtime_parity_smollm_completion() {
     }
 
     let oracle = load_oracle("smollm-135m", "completion")?
-    let apr_result = apr_run_json("models/smollm-135m-q4k.gguf", oracle.prompt)?
-    let llama_text = run_llama_cli("models/smollm-135m-q4k.gguf", oracle.prompt)?
+    let apr_result = apr_run_json("models/smollm-135m-int4.gguf", oracle.prompt)?
+    let llama_text = run_llama_cli("models/smollm-135m-int4.gguf", oracle.prompt)?
 
     assert_eq(apr_result.text.trim(), llama_text,
         f"SmolLM completion: apr '{apr_result.text.trim()}' != llama-cli '{llama_text}'")
@@ -79,8 +79,8 @@ fun test_runtime_parity_smollm_code() {
     }
 
     let oracle = load_oracle("smollm-135m", "code")?
-    let apr_result = apr_run_json("models/smollm-135m-q4k.gguf", oracle.prompt)?
-    let llama_text = run_llama_cli("models/smollm-135m-q4k.gguf", oracle.prompt)?
+    let apr_result = apr_run_json("models/smollm-135m-int4.gguf", oracle.prompt)?
+    let llama_text = run_llama_cli("models/smollm-135m-int4.gguf", oracle.prompt)?
 
     assert_eq(apr_result.text.trim(), llama_text,
         f"SmolLM code: apr '{apr_result.text.trim()}' != llama-cli '{llama_text}'")
@@ -93,8 +93,8 @@ fun test_runtime_parity_smollm_greeting() {
     }
 
     let oracle = load_oracle("smollm-135m", "greeting")?
-    let apr_result = apr_run_json("models/smollm-135m-q4k.gguf", oracle.prompt)?
-    let llama_text = run_llama_cli("models/smollm-135m-q4k.gguf", oracle.prompt)?
+    let apr_result = apr_run_json("models/smollm-135m-int4.gguf", oracle.prompt)?
+    let llama_text = run_llama_cli("models/smollm-135m-int4.gguf", oracle.prompt)?
 
     assert_eq(apr_result.text.trim(), llama_text,
         f"SmolLM greeting: apr '{apr_result.text.trim()}' != llama-cli '{llama_text}'")
@@ -109,8 +109,8 @@ fun test_runtime_parity_qwen2_arithmetic() {
     }
 
     let oracle = load_oracle("qwen2-0.5b", "arithmetic")?
-    let apr_result = apr_run_json("models/qwen2-0.5b-q4k.gguf", oracle.prompt)?
-    let llama_text = run_llama_cli("models/qwen2-0.5b-q4k.gguf", oracle.prompt)?
+    let apr_result = apr_run_json("models/qwen2-0.5b-int4.gguf", oracle.prompt)?
+    let llama_text = run_llama_cli("models/qwen2-0.5b-int4.gguf", oracle.prompt)?
 
     assert_eq(apr_result.text.trim(), llama_text,
         f"Qwen2 arithmetic: apr '{apr_result.text.trim()}' != llama-cli '{llama_text}'")
@@ -123,8 +123,8 @@ fun test_runtime_parity_qwen2_completion() {
     }
 
     let oracle = load_oracle("qwen2-0.5b", "completion")?
-    let apr_result = apr_run_json("models/qwen2-0.5b-q4k.gguf", oracle.prompt)?
-    let llama_text = run_llama_cli("models/qwen2-0.5b-q4k.gguf", oracle.prompt)?
+    let apr_result = apr_run_json("models/qwen2-0.5b-int4.gguf", oracle.prompt)?
+    let llama_text = run_llama_cli("models/qwen2-0.5b-int4.gguf", oracle.prompt)?
 
     assert_eq(apr_result.text.trim(), llama_text,
         f"Qwen2 completion: apr '{apr_result.text.trim()}' != llama-cli '{llama_text}'")
@@ -137,8 +137,8 @@ fun test_runtime_parity_qwen2_code() {
     }
 
     let oracle = load_oracle("qwen2-0.5b", "code")?
-    let apr_result = apr_run_json("models/qwen2-0.5b-q4k.gguf", oracle.prompt)?
-    let llama_text = run_llama_cli("models/qwen2-0.5b-q4k.gguf", oracle.prompt)?
+    let apr_result = apr_run_json("models/qwen2-0.5b-int4.gguf", oracle.prompt)?
+    let llama_text = run_llama_cli("models/qwen2-0.5b-int4.gguf", oracle.prompt)?
 
     assert_eq(apr_result.text.trim(), llama_text,
         f"Qwen2 code: apr '{apr_result.text.trim()}' != llama-cli '{llama_text}'")
@@ -151,8 +151,8 @@ fun test_runtime_parity_qwen2_greeting() {
     }
 
     let oracle = load_oracle("qwen2-0.5b", "greeting")?
-    let apr_result = apr_run_json("models/qwen2-0.5b-q4k.gguf", oracle.prompt)?
-    let llama_text = run_llama_cli("models/qwen2-0.5b-q4k.gguf", oracle.prompt)?
+    let apr_result = apr_run_json("models/qwen2-0.5b-int4.gguf", oracle.prompt)?
+    let llama_text = run_llama_cli("models/qwen2-0.5b-int4.gguf", oracle.prompt)?
 
     assert_eq(apr_result.text.trim(), llama_text,
         f"Qwen2 greeting: apr '{apr_result.text.trim()}' != llama-cli '{llama_text}'")
@@ -167,8 +167,8 @@ fun test_runtime_parity_gpt2_arithmetic() {
     }
 
     let oracle = load_oracle("gpt2-124m", "arithmetic")?
-    let apr_result = apr_run_json("models/gpt2-124m-q4k.gguf", oracle.prompt)?
-    let llama_text = run_llama_cli("models/gpt2-124m-q4k.gguf", oracle.prompt)?
+    let apr_result = apr_run_json("models/gpt2-124m-int4.gguf", oracle.prompt)?
+    let llama_text = run_llama_cli("models/gpt2-124m-int4.gguf", oracle.prompt)?
 
     assert_eq(apr_result.text.trim(), llama_text,
         f"GPT-2 arithmetic: apr '{apr_result.text.trim()}' != llama-cli '{llama_text}'")
@@ -181,8 +181,8 @@ fun test_runtime_parity_gpt2_completion() {
     }
 
     let oracle = load_oracle("gpt2-124m", "completion")?
-    let apr_result = apr_run_json("models/gpt2-124m-q4k.gguf", oracle.prompt)?
-    let llama_text = run_llama_cli("models/gpt2-124m-q4k.gguf", oracle.prompt)?
+    let apr_result = apr_run_json("models/gpt2-124m-int4.gguf", oracle.prompt)?
+    let llama_text = run_llama_cli("models/gpt2-124m-int4.gguf", oracle.prompt)?
 
     assert_eq(apr_result.text.trim(), llama_text,
         f"GPT-2 completion: apr '{apr_result.text.trim()}' != llama-cli '{llama_text}'")
@@ -195,8 +195,8 @@ fun test_runtime_parity_gpt2_code() {
     }
 
     let oracle = load_oracle("gpt2-124m", "code")?
-    let apr_result = apr_run_json("models/gpt2-124m-q4k.gguf", oracle.prompt)?
-    let llama_text = run_llama_cli("models/gpt2-124m-q4k.gguf", oracle.prompt)?
+    let apr_result = apr_run_json("models/gpt2-124m-int4.gguf", oracle.prompt)?
+    let llama_text = run_llama_cli("models/gpt2-124m-int4.gguf", oracle.prompt)?
 
     assert_eq(apr_result.text.trim(), llama_text,
         f"GPT-2 code: apr '{apr_result.text.trim()}' != llama-cli '{llama_text}'")
@@ -209,8 +209,8 @@ fun test_runtime_parity_gpt2_greeting() {
     }
 
     let oracle = load_oracle("gpt2-124m", "greeting")?
-    let apr_result = apr_run_json("models/gpt2-124m-q4k.gguf", oracle.prompt)?
-    let llama_text = run_llama_cli("models/gpt2-124m-q4k.gguf", oracle.prompt)?
+    let apr_result = apr_run_json("models/gpt2-124m-int4.gguf", oracle.prompt)?
+    let llama_text = run_llama_cli("models/gpt2-124m-int4.gguf", oracle.prompt)?
 
     assert_eq(apr_result.text.trim(), llama_text,
         f"GPT-2 greeting: apr '{apr_result.text.trim()}' != llama-cli '{llama_text}'")

@@ -39,11 +39,11 @@
 
 | Comparison | Tolerance | Rationale |
 |-----------|-----------|-----------|
-| Q4K tokens vs oracle | ≤5/32 mismatches | Quantization drift |
-| Q6K tokens vs oracle | ≤3/32 mismatches | Higher precision |
-| Q6K vs Q4K drift | Q6K ≤ Q4K + 1 | Q6K strictly better |
+| Int4 tokens vs oracle | ≤5/32 mismatches | Quantization drift |
+| Int8 tokens vs oracle | ≤3/32 mismatches | Higher precision |
+| Int8 vs Int4 drift | Int8 ≤ Int4 + 1 | Int8 strictly better |
 | Cross-runtime (same GGUF) | Exact text match | Deterministic greedy |
-| PPL Q4K vs Q6K | Diff < 0.5 | Statistical bound |
+| PPL Int4 vs Int8 | Diff < 0.5 | Statistical bound |
 | Canary (text regression) | Exact text match | No inference regression |
 
 ## Quality Standards

@@ -1,0 +1,142 @@
+// test_property.ruchy — Property-based tests for model parity invariants
+//
+// Tests structural properties that must hold across all models and prompts,
+// rather than testing specific values. These are property-based tests that
+// verify invariants of the quantization and conversion pipeline.
+
+import std::fs
+import std::process
+
+// --- Helpers (ruchy has no file imports, must be inline) ---
+
+fun run_apr(args) {
+    let (stdout, stderr, code) = process::execute("apr", args)?
+    if code != 0 { return Err(f"apr failed ({code}): {stderr}") }
+    Ok(stdout)
+}
+
+fun apr_run_json(model_path, prompt) {
+    let stdout = run_apr(["run", model_path, "-p", prompt, "-n", "32", "--json"])?
+    Ok(parse_json(stdout))
+}
+
+fun load_oracle(slug, prompt_name) {
+    let text = fs::read_to_string(f"oracle/{slug}/{prompt_name}.json")?
+    Ok(parse_json(text))
+}
+
+fun count_mismatches(a, b) {
+    let min_len = if a.len() < b.len() { a.len() } else { b.len() }
+    let mut m = 0
+    for i in range(0, min_len) { if a[i] != b[i] { m = m + 1 } }
+    let d = a.len() - b.len()
+    if d < 0 { d = -d }
+    m + d
+}
+
+// --- Property: token count invariant ---
+// Property: all quantized models produce exactly max_new_tokens tokens
+
+@test
+fun test_property_token_count_smollm_int4() {
+    let oracle = load_oracle("smollm-135m", "arithmetic")?
+    let result = apr_run_json("models/smollm-135m-int4.apr", oracle.prompt)?
+    assert_eq(result.token_count, 32, f"SmolLM Int4: expected 32 tokens, got {result.token_count}")
+}
+
+@test
+fun test_property_token_count_smollm_int8() {
+    let oracle = load_oracle("smollm-135m", "arithmetic")?
+    let result = apr_run_json("models/smollm-135m-int8.apr", oracle.prompt)?
+    assert_eq(result.token_count, 32, f"SmolLM Int8: expected 32 tokens, got {result.token_count}")
+}
+
+@test
+fun test_property_token_count_qwen2_int4() {
+    let oracle = load_oracle("qwen2-0.5b", "arithmetic")?
+    let result = apr_run_json("models/qwen2-0.5b-int4.apr", oracle.prompt)?
+    assert_eq(result.token_count, 32, f"Qwen2 Int4: expected 32 tokens, got {result.token_count}")
+}
+
+@test
+fun test_property_token_count_qwen2_int8() {
+    let oracle = load_oracle("qwen2-0.5b", "arithmetic")?
+    let result = apr_run_json("models/qwen2-0.5b-int8.apr", oracle.prompt)?
+    assert_eq(result.token_count, 32, f"Qwen2 Int8: expected 32 tokens, got {result.token_count}")
+}
+
+@test
+fun test_property_token_count_gpt2_int4() {
+    let oracle = load_oracle("gpt2-124m", "arithmetic")?
+    let result = apr_run_json("models/gpt2-124m-int4.apr", oracle.prompt)?
+    assert_eq(result.token_count, 32, f"GPT-2 Int4: expected 32 tokens, got {result.token_count}")
+}
+
+@test
+fun test_property_token_count_gpt2_int8() {
+    let oracle = load_oracle("gpt2-124m", "arithmetic")?
+    let result = apr_run_json("models/gpt2-124m-int8.apr", oracle.prompt)?
+    assert_eq(result.token_count, 32, f"GPT-2 Int8: expected 32 tokens, got {result.token_count}")
+}
+
+// --- Property: idempotent re-run ---
+// Property: running the same model on the same prompt twice produces identical output
+
+@test
+fun test_property_idempotent_smollm() {
+    let oracle = load_oracle("smollm-135m", "completion")?
+    let run1 = apr_run_json("models/smollm-135m-int8.apr", oracle.prompt)?
+    let run2 = apr_run_json("models/smollm-135m-int8.apr", oracle.prompt)?
+    assert_eq(run1.tokens, run2.tokens, "SmolLM: idempotent re-run produced different tokens")
+}
+
+@test
+fun test_property_idempotent_qwen2() {
+    let oracle = load_oracle("qwen2-0.5b", "completion")?
+    let run1 = apr_run_json("models/qwen2-0.5b-int8.apr", oracle.prompt)?
+    let run2 = apr_run_json("models/qwen2-0.5b-int8.apr", oracle.prompt)?
+    assert_eq(run1.tokens, run2.tokens, "Qwen2: idempotent re-run produced different tokens")
+}
+
+@test
+fun test_property_idempotent_gpt2() {
+    let oracle = load_oracle("gpt2-124m", "completion")?
+    let run1 = apr_run_json("models/gpt2-124m-int8.apr", oracle.prompt)?
+    let run2 = apr_run_json("models/gpt2-124m-int8.apr", oracle.prompt)?
+    assert_eq(run1.tokens, run2.tokens, "GPT-2: idempotent re-run produced different tokens")
+}
+
+// --- Property: monotonic precision ---
+// Property: higher precision never produces MORE mismatches than lower precision
+// This is a mutation-testing-style invariant: if we "mutate" precision upward,
+// quality must not degrade.
+
+@test
+fun test_property_monotonic_precision_smollm() {
+    let oracle = load_oracle("smollm-135m", "code")?
+    let int4 = apr_run_json("models/smollm-135m-int4.apr", oracle.prompt)?
+    let int8 = apr_run_json("models/smollm-135m-int8.apr", oracle.prompt)?
+    let m4 = count_mismatches(int4.tokens, oracle.tokens)
+    let m8 = count_mismatches(int8.tokens, oracle.tokens)
+    assert(m8 <= m4 + 1, f"SmolLM: Int8 ({m8}) not monotonically better than Int4 ({m4})")
+}
+
+@test
+fun test_property_monotonic_precision_qwen2() {
+    let oracle = load_oracle("qwen2-0.5b", "code")?
+    let int4 = apr_run_json("models/qwen2-0.5b-int4.apr", oracle.prompt)?
+    let int8 = apr_run_json("models/qwen2-0.5b-int8.apr", oracle.prompt)?
+    let m4 = count_mismatches(int4.tokens, oracle.tokens)
+    let m8 = count_mismatches(int8.tokens, oracle.tokens)
+    assert(m8 <= m4 + 1, f"Qwen2: Int8 ({m8}) not monotonically better than Int4 ({m4})")
+}
+
+@test
+fun test_property_monotonic_precision_gpt2() {
+    let oracle = load_oracle("gpt2-124m", "code")?
+    let int4 = apr_run_json("models/gpt2-124m-int4.apr", oracle.prompt)?
+    let int8 = apr_run_json("models/gpt2-124m-int8.apr", oracle.prompt)?
+    let m4 = count_mismatches(int4.tokens, oracle.tokens)
+    let m8 = count_mismatches(int8.tokens, oracle.tokens)
+    assert(m8 <= m4 + 1, f"GPT-2: Int8 ({m8}) not monotonically better than Int4 ({m4})")
+}

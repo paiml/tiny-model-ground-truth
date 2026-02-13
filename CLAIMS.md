@@ -45,11 +45,11 @@ A single test failure constitutes evidence for H0 (a bug exists).
 - **Threshold**: Exact token match (0 tolerance).
 - **Sample size**: 6 test cases (3 models x 2 prompts).
 
-### Claim 6: Cross-Runtime Parity
+### Claim 6: Cross-Runtime Parity (Deferred)
 - **Statement**: `apr` and `llama.cpp` produce identical text output when running the same GGUF model with deterministic greedy decoding (temperature=0).
-- **Falsification**: Any `assert_eq` failure in `parity_check.py (runtime suite)`.
+- **Status**: Deferred. Not implemented in parity checker. Requires `apr run` to produce correct output first (blocked by aprender#239).
 - **Threshold**: Exact text match.
-- **Sample size**: 12 test cases (3 models x 4 prompts). Skipped gracefully if llama-cli unavailable.
+- **Sample size**: 12 test cases (3 models x 4 prompts), when implemented.
 
 ### Claim 7: Perplexity Bounds
 - **Statement**: Model perplexity stays within architecture-specific ceilings: SmolLM <20.0, Qwen2 <15.0, GPT-2 <30.0.

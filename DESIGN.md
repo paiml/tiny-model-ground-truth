@@ -30,7 +30,7 @@ This design document was authored and committed before the test suite was execut
 | Models | 3 | Exhaustive over roster (LLaMA, Qwen/GQA, GPT-2) |
 | Prompts | 4 | Categorical coverage (math, NLP, code, social) |
 | Quant levels | 2 | Int4 (lower) and Int8 (higher) precision |
-| Test cases | 87 | Exhaustive cross-product + property tests |
+| Parity checks | 59 | Exhaustive cross-product across 5 check suites |
 
 ### Confidence Intervals
 
@@ -53,7 +53,7 @@ All tests are deterministic (greedy decoding, temperature=0).
 
 - **CPU**: Any x86_64/ARM64 (no GPU needed)
 - **RAM**: ≥4GB
-- **Duration**: <1 sec for test suite, ~4 min for full CI
+- **Duration**: ~2 min for check suite, ~5 min for full CI
 - **Reproducibility**: Docker, Nix flake, uv.lock, .tool-versions
 
 ### Archival

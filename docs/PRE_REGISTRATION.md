@@ -30,7 +30,7 @@ This document was written and committed **before** executing the test suite agai
 - All tests are deterministic (greedy decoding). No statistical analysis needed.
 - A single test failure constitutes falsification of the corresponding claim.
 - No data exclusion criteria: all test results are reported.
-- No stopping rules: all 75 tests run to completion.
+- No stopping rules: all 59 checks run to completion.
 
 ### Deviations from Pre-Registration
 

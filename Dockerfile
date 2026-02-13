@@ -9,9 +9,12 @@ COPY --from=builder /usr/local/cargo/bin/ruchy /usr/local/bin/ruchy
 
 RUN pip install uv
 
-WORKDIR /app
-COPY . .
+RUN useradd -m -s /bin/bash tmgt
+USER tmgt
+
+WORKDIR /home/tmgt/app
+COPY --chown=tmgt:tmgt . .
 
 RUN uv sync
 
-CMD ["make", "test"]
+CMD ["make", "ci"]

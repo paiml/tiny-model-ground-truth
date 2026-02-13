@@ -1,4 +1,4 @@
-.PHONY: oracle pull convert check check-canary check-token check-drift check-roundtrip check-ppl ticket ci clean
+.PHONY: oracle pull convert check check-canary check-token check-drift check-roundtrip check-ppl ticket ci recheck clean
 
 oracle:
 	uv run python scripts/gen_oracle.py --all
@@ -20,18 +20,22 @@ convert:
 	apr import hf://openai-community/gpt2 --quantize int8 -o models/gpt2-124m-int8.apr
 	apr export models/gpt2-124m-int4.apr --format gguf --skip-contract -o models/gpt2-124m-int4.gguf
 
-# Real parity checks (actually runs apr inference)
+# Run all parity checks (shells out to apr run/eval)
 check:
 	uv run python scripts/parity_check.py
 
 check-canary:
 	uv run python scripts/parity_check.py --check canary
+
 check-token:
 	uv run python scripts/parity_check.py --check token
+
 check-drift:
 	uv run python scripts/parity_check.py --check drift
+
 check-roundtrip:
 	uv run python scripts/parity_check.py --check roundtrip
+
 check-ppl:
 	uv run python scripts/parity_check.py --check ppl
 
@@ -39,7 +43,11 @@ check-ppl:
 ticket:
 	uv run python scripts/parity_check.py --ticket
 
+# Full CI pipeline: download, convert, check
 ci: pull convert check
 
+# Reconvert and recheck (skip download, useful after apr upgrades)
+recheck: clean convert check
+
 clean:
-	rm -f models/*.apr models/*.gguf
+	rm -f models/*.apr models/*.gguf models/*-roundtrip-tmp.apr

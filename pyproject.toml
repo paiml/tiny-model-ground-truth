@@ -1,7 +1,7 @@
 [project]
 name = "tiny-model-ground-truth"
 version = "0.1.0"
-description = "Oracle generator for model parity ground truth"
+description = "Popperian falsification for model format parity in the Sovereign AI Stack"
 requires-python = ">=3.11"
 dependencies = [
     "transformers>=4.45.0",
@@ -11,9 +11,38 @@ dependencies = [
     "accelerate>=0.28.0",
 ]
 
+[project.optional-dependencies]
+test = [
+    "pytest>=8.0.0",
+    "pytest-timeout>=2.2.0",
+    "hypothesis>=6.100.0",
+]
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["scripts"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "requires_apr: test requires apr CLI in PATH",
+    "requires_models: test requires converted model files",
+    "canary: Claim 1 - Int8 exact text match vs oracle",
+    "token_parity: Claims 2,3 - Int4/Int8 token mismatch bounds",
+    "quant_drift: Claim 4 - Int8 <= Int4 + 1 drift ordering",
+    "roundtrip: Claim 5 - APR->GGUF->APR lossless roundtrip",
+    "perplexity: Claims 7,8 - PPL bounds and drift",
+    "property_based: hypothesis property-based tests",
+]
+timeout = 120
+
+[tool.coverage.run]
+source = ["scripts"]
+omit = ["tests/*"]
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 80

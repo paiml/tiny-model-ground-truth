@@ -1,0 +1,10 @@
+{
+  "name": "tiny-model-ground-truth",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Commit linting configuration for conventional commits",
+  "devDependencies": {
+    "@commitlint/cli": "^19.0.0",
+    "@commitlint/config-conventional": "^19.0.0"
+  }
+}

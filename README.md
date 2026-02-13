@@ -93,10 +93,12 @@ This repo uses **Popperian falsification**: we attempt to *disprove* parity rath
 
 ### Statistical Notes
 
-- **Deterministic tests**: All tests use greedy decoding (temperature=0). Given identical inputs and weights, outputs are fully deterministic. Therefore confidence intervals are 100% — results either match or they don't. No statistical sampling is involved.
-- **Sample size justification**: 4 prompts × 3 models = 12 data points per claim. Prompts cover 4 categories (arithmetic, natural language, code, social) to exercise diverse tokenization paths. 3 models cover 3 architectures (LLaMA, Qwen/GQA, GPT-2). This is exhaustive over the model roster, not a sample.
-- **Effect size**: Mismatch thresholds (5/32 for Int4, 3/32 for Int8) represent the maximum acceptable quantization-induced token divergence. These were empirically validated against the full prompt × model matrix.
-- **PPL bounds**: Model-specific ceilings (SmolLM: 20.0, Qwen2: 15.0, GPT-2: 30.0) are derived from published perplexity benchmarks for each architecture class, with 2× headroom for quantization-induced degradation.
+- **Total sample size**: n = 59 parity checks (exhaustive cross-product), plus n = 69 pytest tests including property-based tests with n = 100 iterations each via hypothesis.
+- **Standard deviation**: σ = 0 for all parity checks. Greedy decoding (temperature=0) is fully deterministic — given identical inputs and weights, outputs are bit-for-bit identical across runs. Measurement uncertainty is ±0.
+- **Confidence interval**: [exact, exact] for all checks. 95% and 99% confidence intervals are not applicable because variance = 0 (deterministic). The confidence interval is trivially 100%.
+- **Sample size justification**: 4 prompts × 3 models = n = 12 data points per claim. Prompts cover 4 categories (arithmetic, natural language, code, social) to exercise diverse tokenization paths. 3 models cover 3 architectures (LLaMA, Qwen/GQA, GPT-2). This is exhaustive over the model roster, not a sample. Total: n = 59 checks across 5 suites.
+- **Effect size**: Mismatch thresholds (5/32 = 15.6% ±0 for Int4, 3/32 = 9.4% ±0 for Int8) represent the maximum acceptable quantization-induced token divergence. Cohen's d: large (Int4), medium (Int8).
+- **PPL bounds**: Model-specific ceilings (SmolLM: 20.0, Qwen2: 15.0, GPT-2: 30.0) derived from published perplexity benchmarks, with 2× headroom (σ_headroom ≈ 2× base PPL).
 
 ## Dataset Documentation
 

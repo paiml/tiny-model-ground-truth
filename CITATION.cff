@@ -1,0 +1,17 @@
+cff-version: 1.2.0
+message: "If you use this repository, please cite it as below."
+type: software
+title: "tiny-model-ground-truth"
+abstract: "Popperian falsification test suite for model format parity in the Sovereign AI Stack"
+version: 0.1.0
+date-released: 2026-02-13
+license: MIT
+repository-code: "https://github.com/paiml/tiny-model-ground-truth"
+keywords:
+  - model-parity
+  - quantization
+  - falsification
+  - reproducibility
+  - inference-testing
+authors:
+  - name: "PAIML ML Infrastructure Team"

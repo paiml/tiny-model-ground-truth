@@ -27,6 +27,10 @@ PROMPTS_DIR = Path("prompts")
 ORACLE_DIR = Path("oracle")
 MAX_NEW_TOKENS = 32
 
+# Seed for reproducibility. Greedy decoding (do_sample=False) is fully
+# deterministic regardless of seed, but we set it explicitly for provenance.
+SEED = 42
+
 
 def load_prompts() -> dict[str, str]:
     """Load all prompt files from prompts/ directory."""
@@ -46,6 +50,7 @@ def generate_oracle(slug: str, hf_id: str, prompts: dict[str, str]) -> None:
         device_map="cpu",
     )
     model.eval()
+    torch.manual_seed(SEED)
 
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token

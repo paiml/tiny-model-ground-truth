@@ -1,0 +1,21 @@
+# Mutation testing configuration
+# Mutants are generated from the parity checker to verify test sensitivity
+
+[mutation]
+# Source files to mutate
+source_dirs = ["scripts/"]
+# Test command to verify mutant detection
+test_command = "uv run --extra test pytest tests/ -x"
+# Timeout per mutant (seconds)
+timeout = 300
+
+[targets]
+# Key functions where mutations should be detected by tests
+functions = [
+    "count_mismatches",
+    "check_canary",
+    "check_token_parity",
+    "check_quant_drift",
+    "check_roundtrip",
+    "check_perplexity",
+]

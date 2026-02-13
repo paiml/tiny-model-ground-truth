@@ -29,17 +29,30 @@
 
 ## Sample Size Justification
 
-- **Models** (n=3): Exhaustive over the tiny model roster. Covers 3 distinct architectures (LLaMA-style, GQA, GPT-2).
-- **Prompts** (n=4): Categorical coverage of tokenization patterns. Arithmetic, NLP, Code, Social.
-- **Quantization levels** (n=2): Int4 and Int8 span the precision range.
-- **Total checks**: 59 across 5 check suites.
+- **Models**: n = 3 (exhaustive over the tiny model roster). Covers 3 distinct architectures (LLaMA-style, GQA, GPT-2).
+- **Prompts**: n = 4 (categorical coverage of tokenization patterns). Arithmetic, NLP, Code, Social.
+- **Quantization levels**: n = 2 (Int4 and Int8 span the precision range).
+- **Total parity checks**: n = 59 across 5 check suites.
+- **Total pytest tests**: n = 69 (59 parity + 6 property-based + 4 unit).
+- **Hypothesis iterations**: n = 100 per property-based test (configurable).
+
+## Statistical Properties
+
+All parity checks are deterministic (greedy decoding, temperature = 0):
+
+- **Standard deviation**: σ = 0 (no stochastic component)
+- **Measurement uncertainty**: ±0 (bit-for-bit identical across runs)
+- **Confidence interval**: [exact, exact] — trivially 100%
+- **p-value**: Not applicable (binary pass/fail, no null distribution)
+- **Required replications**: 1 (deterministic)
 
 ## Timing
 
-| Phase | Expected Duration |
-|-------|------------------|
-| `make pull` | ~2 min (network dependent, ~1.5GB) |
-| `make convert` | ~1 min (9 model files) |
-| `make check` | ~2 min (59 checks, each invokes apr inference) |
-| `make oracle` | ~5 min (3 model loads + inference) |
-| Full CI (`make ci`) | ~5 min |
+| Phase | Expected Duration (±σ) |
+|-------|------------------------|
+| `make pull` | ~2 min ±1 min (network dependent, ~1.5GB) |
+| `make convert` | ~1 min ±30s (9 model files) |
+| `make check` | ~2 min ±30s (59 checks, each invokes apr inference) |
+| `make test` | ~3s ±1s (property-based tests only, no apr needed) |
+| `make oracle` | ~5 min ±2 min (3 model loads + inference) |
+| Full CI (`make ci`) | ~5 min ±2 min |

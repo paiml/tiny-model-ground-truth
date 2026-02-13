@@ -1,0 +1,30 @@
+stages:
+  pull:
+    cmd: make pull
+    outs:
+      - models/smollm-135m-int4.apr
+      - models/smollm-135m-int8.apr
+      - models/qwen2-0.5b-int4.apr
+      - models/qwen2-0.5b-int8.apr
+      - models/gpt2-124m-int4.apr
+      - models/gpt2-124m-int8.apr
+    deps:
+      - Makefile
+
+  convert:
+    cmd: make convert
+    deps:
+      - Makefile
+    outs:
+      - models/smollm-135m-int4.gguf
+      - models/qwen2-0.5b-int4.gguf
+      - models/gpt2-124m-int4.gguf
+
+  check:
+    cmd: make check
+    deps:
+      - scripts/parity_check.py
+      - oracle/
+    metrics:
+      - parity_results.json:
+          cache: false

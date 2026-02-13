@@ -1,4 +1,4 @@
-.PHONY: oracle pull convert check check-canary check-token check-drift check-roundtrip check-ppl ticket ci recheck clean
+.PHONY: oracle pull convert check check-canary check-token check-drift check-roundtrip check-ppl test test-canary test-token test-drift test-roundtrip test-ppl ticket ci recheck clean
 
 oracle:
 	uv run python scripts/gen_oracle.py --all
@@ -38,6 +38,25 @@ check-roundtrip:
 
 check-ppl:
 	uv run python scripts/parity_check.py --check ppl
+
+# pytest-based parity tests (same checks, pytest runner)
+test:
+	uv run --extra test pytest tests/ -v
+
+test-canary:
+	uv run --extra test pytest tests/test_canary.py -v
+
+test-token:
+	uv run --extra test pytest tests/test_token_parity.py -v
+
+test-drift:
+	uv run --extra test pytest tests/test_quant_drift.py -v
+
+test-roundtrip:
+	uv run --extra test pytest tests/test_roundtrip.py -v
+
+test-ppl:
+	uv run --extra test pytest tests/test_perplexity.py -v
 
 # Generate GitHub issue markdown for failures
 ticket:

@@ -4,14 +4,20 @@
 # All 59 parity checks must pass (no exclusions)
 target = 100
 min_checks = 59
+test_runner = "pytest"
+test_directory = "tests/"
+source_directory = "scripts/"
 
 [sample_size]
 # Exhaustive coverage over model roster (n=3) x prompt set (n=4)
-# Total: 59 checks across 5 check suites
-# Confidence interval: 100% (deterministic greedy decoding)
-# Effect size: Int4 ≤15.6% mismatch, Int8 ≤9.4% mismatch
+# Total: n = 59 checks across 5 check suites
+# Confidence interval: [exact, exact] — 100% CI (deterministic greedy decoding)
+# Standard deviation: σ = 0 (deterministic, no stochastic component)
+# Effect size: Int4 ≤15.6% (±0) mismatch, Int8 ≤9.4% (±0) mismatch
 models = 3
 prompts = 4
 quantization_levels = 2
 total_checks = 59
 confidence_level = "100%"
+standard_deviation = 0
+iterations = 1

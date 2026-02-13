@@ -11,6 +11,7 @@ import argparse
 import json
 import subprocess
 import sys
+from datetime import date
 from pathlib import Path
 
 ORACLE_DIR = Path("oracle")
@@ -265,13 +266,22 @@ def check_perplexity(slug: str, model_info: dict) -> list[Result]:
     return results
 
 
+def get_apr_version() -> str:
+    """Get apr CLI version string."""
+    try:
+        proc = subprocess.run(["apr", "--version"], capture_output=True, text=True, timeout=5)
+        return proc.stdout.strip() if proc.returncode == 0 else "unknown"
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        return "unknown"
+
+
 def format_ticket(failures: list[Result]) -> str:
     """Format failures as a GitHub issue body for aprender."""
     lines = [
         "## Model Parity Failures",
         "",
-        f"**Date**: 2026-02-13",
-        f"**Tool**: `apr` v0.2.16",
+        f"**Date**: {date.today().isoformat()}",
+        f"**Tool**: `{get_apr_version()}`",
         f"**Oracle**: transformers 5.1.0, torch 2.10.0, float32, CPU, greedy",
         "",
         f"### {len(failures)} failure(s)",
@@ -317,10 +327,11 @@ def main():
 
     for slug, info in models_to_test.items():
         # Verify model files exist
-        for key in ["int4", "int8"]:
-            if not Path(info[key]).exists():
-                print(f"SKIP {slug}: {info[key]} not found (run make convert)")
-                continue
+        missing = [k for k in ["int4", "int8"] if not Path(info[k]).exists()]
+        if missing:
+            for k in missing:
+                print(f"SKIP {slug}: {info[k]} not found (run make convert)")
+            continue
 
         print(f"\n{'='*60}")
         print(f"  {slug}")

@@ -4,7 +4,7 @@
 
 **Thesis**: Given a tiny model from HuggingFace, every format conversion and runtime engine in the Sovereign AI Stack must produce token-identical greedy outputs (or bounded quantization drift). A single failure proves a bug.
 
-**Current status**: **0/59 checks passing**. Three critical bugs found in aprender/realizar — see [Filed Issues](#filed-issues).
+**Current status**: **0/59 checks passing**. Nine issues filed against aprender/realizar — see [Filed Issues](#filed-issues).
 
 See [CLAIMS.md](CLAIMS.md) for pre-registered falsifiable claims and design rationale (ADRs).
 
@@ -30,7 +30,7 @@ make ticket    # Generate GitHub issue markdown for failures
 docker build -t tmgt . && docker run tmgt
 
 # Native (requires Rust toolchain)
-bash ci/setup.sh   # Install apr, ruchy
+bash ci/setup.sh   # Install apr
 uv sync            # Install Python deps (locked via uv.lock)
 ```
 
@@ -38,17 +38,24 @@ uv sync            # Install Python deps (locked via uv.lock)
 
 | Model | APR Int4 | APR Int8 | GGUF Roundtrip | PPL |
 |-------|----------|----------|----------------|-----|
-| SmolLM-135M | **FAIL** all-zero embeddings | **FAIL** NaN/Inf corruption | **FAIL** (blocked) | **FAIL** (blocked) |
-| Qwen2-0.5B | **FAIL** all-zero embeddings | **FAIL** NaN/Inf corruption | **FAIL** (blocked) | **FAIL** (blocked) |
-| GPT-2 124M | **FAIL** PMAT-237 contract | **FAIL** PMAT-237 contract | **FAIL** PMAT-237 contract | **FAIL** (blocked) |
+| SmolLM-135M | **FAIL** Q4 layer zeros | **FAIL** Q8 layer shape | **FAIL** (blocked) | **FAIL** (blocked) |
+| Qwen2-0.5B | **FAIL** Q4 layer zeros | **FAIL** Q8 layer shape | **FAIL** (blocked) | **FAIL** (blocked) |
+| GPT-2 124M | **FAIL** Q4 layer zeros | **FAIL** Q8 layer shape | **FAIL** hidden_dim=0 | **FAIL** (blocked) |
+
+Current blocker: realizar's APR transformer loader reads Q8/Q4 bytes as f32 (#239).
 
 ## Filed Issues
 
-| Issue | Model(s) | Bug | Severity |
-|-------|----------|-----|----------|
-| [paiml/aprender#231](https://github.com/paiml/aprender/issues/231) | SmolLM, Qwen2 | Int8 embedding NaN/Inf + shape mismatch | Critical |
-| [paiml/aprender#232](https://github.com/paiml/aprender/issues/232) | SmolLM, Qwen2 | Int4 all-zero embedding tensors | Critical |
-| [paiml/aprender#233](https://github.com/paiml/aprender/issues/233) | GPT-2 | Missing `wte.weight` tensor name + `wpe.weight` density violation | High |
+| Issue | Bug | Status |
+|-------|-----|--------|
+| [#231](https://github.com/paiml/aprender/issues/231) | Int8 embedding NaN/Inf + shape mismatch | Fixed (skip-quant) |
+| [#232](https://github.com/paiml/aprender/issues/232) | Int4 all-zero embedding tensors | Fixed (skip-quant) |
+| [#233](https://github.com/paiml/aprender/issues/233) | GPT-2 tensor name mapping + wpe density | Fixed |
+| [#234](https://github.com/paiml/aprender/issues/234) | lm_head not excluded from quantization | Fixed (skip-quant) |
+| [#235](https://github.com/paiml/aprender/issues/235) | GPT-2 hidden_dim=64 instead of 768 | Fixed (n_embd fallback) |
+| [#236](https://github.com/paiml/aprender/issues/236) | GPT-2 GGUF export hidden_dim=0 | Partial (export OK, reimport fails) |
+| [#237](https://github.com/paiml/aprender/issues/237) | Quantization write pipeline broken for all tensors | Fixed (real Q8/Q4 writes) |
+| [**#239**](https://github.com/paiml/aprender/issues/239) | **realizar loader reads Q8/Q4 bytes as f32** | **Open — current blocker** |
 
 ## Check Suites
 

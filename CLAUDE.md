@@ -6,9 +6,8 @@
 
 ### Architecture
 
-- **Python** (via `uv`): ONLY for generating oracle golden JSON files from HuggingFace `transformers`. Rare, manual step.
-- **Ruchy**: ALL parity tests. Shells out to `apr`, `llama-cli`, etc. via `process::execute()`, parses JSON with `parse_json()`, asserts with `@test` + `assert()`/`assert_eq()`.
-- **`apr` CLI**: All heavy lifting — `pull`, `import`, `export`, `run --json`, `eval --json`, `diff --json`, `validate`.
+- **Python** (via `uv`): Oracle generation (golden JSON from `transformers`) AND parity checking (shells out to `apr`, compares against oracle)
+- **`apr` CLI**: All heavy lifting — `pull`, `import`, `export`, `run --json`, `eval --json`
 
 ## Model Roster
 
@@ -25,14 +24,15 @@
 | `make oracle` | Generate golden JSON from HuggingFace transformers |
 | `make pull` | Download models from HuggingFace |
 | `make convert` | Import/export to APR and GGUF formats |
-| `make test` | Run all ruchy parity tests |
-| `make test-canary` | Golden output regression tests |
-| `make test-token` | Token match bound tests |
-| `make test-quant` | Quantization drift ordering tests |
-| `make test-roundtrip` | APR/GGUF format roundtrip tests |
-| `make test-runtime` | Cross-runtime parity tests |
-| `make test-ppl` | Perplexity bound tests |
-| `make ci` | Full CI pipeline (pull + convert + test) |
+| `make check` | Run all parity checks (shells out to `apr run`) |
+| `make check-canary` | Golden output regression (Int8 exact match) |
+| `make check-token` | Token mismatch bounds (Int4 ≤5/32, Int8 ≤3/32) |
+| `make check-drift` | Quantization drift ordering (Int8 ≤ Int4 + 1) |
+| `make check-roundtrip` | APR → GGUF → reimport token identity |
+| `make check-ppl` | Perplexity bounds and Int4/Int8 drift |
+| `make ticket` | Generate GitHub issue markdown for failures |
+| `make ci` | Full pipeline (pull + convert + check) |
+| `make recheck` | After apr upgrades (clean + convert + check) |
 | `make clean` | Remove generated model files |
 
 ## Tolerance Standards
@@ -42,16 +42,14 @@
 | Int4 tokens vs oracle | ≤5/32 mismatches | Quantization drift |
 | Int8 tokens vs oracle | ≤3/32 mismatches | Higher precision |
 | Int8 vs Int4 drift | Int8 ≤ Int4 + 1 | Int8 strictly better |
-| Cross-runtime (same GGUF) | Exact text match | Deterministic greedy |
 | PPL Int4 vs Int8 | Diff < 0.5 | Statistical bound |
 | Canary (text regression) | Exact text match | No inference regression |
 
 ## Quality Standards
 
-- All tests must pass before merge
-- Commit format: `feat|fix|test: msg (Refs TMGT-XXX)`
-- Python only for oracle generation, ruchy for all tests
-- Each ruchy test file is self-contained (no file imports)
+- All checks must pass before merge
+- Commit format: `feat|fix|test|docs: msg (Refs TMGT-XXX)`
+- `bashrs comply check` must score A+ (100/100)
 
 ## Code Search
 
@@ -59,5 +57,5 @@ Use `pmat query` for code search (per org convention):
 
 ```bash
 pmat query "oracle generation" --include-source
-pmat query "parity test" --limit 10
+pmat query "parity check" --limit 10
 ```

@@ -27,4 +27,4 @@ stages:
       - oracle/
     metrics:
       - parity_results.json:
-          cache: false
+          cache: "false"

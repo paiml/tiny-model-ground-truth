@@ -2,12 +2,21 @@
 
 ## Project Overview
 
-**tiny-model-ground-truth** is a Popperian falsification repository for model format conversions and runtime parity across the Sovereign AI Stack. Central hypothesis: *"Given a tiny model from HuggingFace, every format conversion and runtime engine must produce token-identical greedy outputs (or bounded quantization drift)."*
+**tiny-model-ground-truth** is a Popperian falsification repo
+for model format conversions and runtime parity across the
+Sovereign AI Stack.
+
+Central hypothesis: given a tiny model from HuggingFace, every
+format conversion and runtime engine must produce
+token-identical greedy outputs (or bounded quantization drift).
 
 ### Architecture
 
-- **Python** (via `uv`): Oracle generation (golden JSON from `transformers`) AND parity checking (shells out to `apr`, compares against oracle)
-- **`apr` CLI**: All heavy lifting — `pull`, `import`, `export`, `run --json`, `eval --json`
+- **Python** (via `uv`): Oracle generation (golden JSON from
+  `transformers`) AND parity checking (shells out to `apr`,
+  compares against oracle)
+- **`apr` CLI**: All heavy lifting — `pull`, `import`, `export`,
+  `run --json`, `eval --json`
 
 ## Model Roster
 
@@ -53,9 +62,20 @@
 
 ## Code Search
 
-Use `pmat query` for code search (per org convention):
+**NEVER use grep or rg for code discovery. ALWAYS use pmat query.**
+
+| Task | Command |
+|------|---------|
+| Find functions | `pmat query "oracle" --limit 10` |
+| Find high-quality | `pmat query "check" --min-grade A` |
+| Find with faults | `pmat query "mismatch" --faults` |
+| Include source | `pmat query "parity" --include-source` |
+| Regex search | `pmat query --regex "def\s+check_"` |
+| Literal search | `pmat query --literal "count_mismatches"` |
+| Exclude tests | `pmat query "oracle" --exclude-tests` |
 
 ```bash
 pmat query "oracle generation" --include-source
-pmat query "parity check" --limit 10
+pmat query "parity check" --faults --limit 10
+pmat query "count_mismatches" --include-source --limit 5
 ```

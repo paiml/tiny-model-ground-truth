@@ -1,6 +1,10 @@
 models/
 !models/.gitkeep
+!models/README.md
 .venv/
 __pycache__/
 *.pyc
 .DS_Store
+.hypothesis/
+.pmat/hooks-cache/
+.pytest_cache/

@@ -1,0 +1,9 @@
+# PMAT metrics configuration
+[thresholds]
+complexity_max = 15
+coverage_min = 80
+mutation_score_min = 60
+
+[project]
+type = "python"
+test_command = "uv run --extra test pytest tests/ -v"

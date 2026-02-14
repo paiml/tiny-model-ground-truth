@@ -5,7 +5,10 @@
 
 ## Pre-Registration
 
-This design document was authored and committed before the test suite was executed. It constitutes a pre-registration of the experimental design, hypotheses, and analysis plan per Popperian falsification methodology.
+This design document was authored and committed before the test
+suite was executed. It constitutes a pre-registration of the
+experimental design, hypotheses, and analysis plan per Popperian
+falsification methodology.
 
 ### Hypotheses (Pre-Registered)
 

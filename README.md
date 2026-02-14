@@ -1,10 +1,23 @@
 # tiny-model-ground-truth
 
-[![Methodology](https://img.shields.io/badge/methodology-Popperian%20falsification-red)](https://en.wikipedia.org/wiki/Falsifiability) [![Models](https://img.shields.io/badge/models-3-blue)]() [![Parity](https://img.shields.io/badge/parity-0%2F59%20passing-red)]() [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![Methodology][meth-badge]][meth-link]
+[![Models][model-badge]]()
+[![Parity][parity-badge]]()
+[![License][lic-badge]](LICENSE)
 
-**Thesis**: Given a tiny model from HuggingFace, every format conversion and runtime engine in the Sovereign AI Stack must produce token-identical greedy outputs (or bounded quantization drift). A single failure proves a bug.
+[meth-badge]: https://img.shields.io/badge/methodology-Popperian%20falsification-red
+[meth-link]: https://en.wikipedia.org/wiki/Falsifiability
+[model-badge]: https://img.shields.io/badge/models-3-blue
+[parity-badge]: https://img.shields.io/badge/parity-0%2F59%20passing-red
+[lic-badge]: https://img.shields.io/badge/license-MIT-blue
 
-**Current status**: **0/59 checks passing**. Nine issues filed against aprender/realizar — see [Filed Issues](#filed-issues).
+**Thesis**: Given a tiny model from HuggingFace, every format
+conversion and runtime engine in the Sovereign AI Stack must
+produce token-identical greedy outputs (or bounded quantization
+drift). A single failure proves a bug.
+
+**Current status**: **0/59 checks passing**. Nine issues filed
+against aprender/realizar — see [Filed Issues](#filed-issues).
 
 See [CLAIMS.md](CLAIMS.md) for pre-registered falsifiable claims and design rationale (ADRs).
 
@@ -70,35 +83,53 @@ Current blocker: realizar's APR transformer loader reads Q8/Q4 bytes as f32 (#23
 
 ## Methodology
 
-This repo uses **Popperian falsification**: we attempt to *disprove* parity rather than *prove* it. Each test encodes a specific falsifiable prediction. A single failure constitutes evidence of a bug in the format conversion or runtime engine.
+This repo uses **Popperian falsification**: we attempt to
+*disprove* parity rather than *prove* it. Each test encodes a
+specific falsifiable prediction. A single failure constitutes
+evidence of a bug in the format conversion or runtime engine.
 
 ### Oracle Generation
 
 - **Source**: HuggingFace `transformers` (v5.1.0) with PyTorch (v2.10.0)
 - **Precision**: float32, CPU-only, `do_sample=False` (deterministic greedy)
-- **Random seeds**: Not applicable — greedy decoding is fully deterministic (see [ADR-001](CLAIMS.md#adr-001-greedy-decoding-only))
+- **Random seeds**: Not applicable — greedy decoding is fully
+  deterministic (see [ADR-001](CLAIMS.md#adr-001-greedy-decoding-only))
 - **Max tokens**: 32 per prompt
 - **Output**: JSON with token IDs, decoded text, model metadata
 
 ### Tolerance Thresholds
 
-| Comparison | Threshold | Effect Size | Confidence | Sample Size |
-|-----------|-----------|-------------|------------|-------------|
-| Int4 tokens vs oracle | ≤5/32 mismatches | 15.6% mismatch rate | Deterministic (CI=100%) | n=12 per model |
-| Int8 tokens vs oracle | ≤3/32 mismatches | 9.4% mismatch rate | Deterministic (CI=100%) | n=12 per model |
-| Int8 vs Int4 drift | Int8 ≤ Int4 + 1 | ≤1 token difference | Deterministic (CI=100%) | n=12 per model |
-| Cross-runtime (same GGUF) | Exact text match | 0% divergence | Deterministic (CI=100%) | n=12 per model |
-| PPL Int4 vs Int8 | Diff < 0.5 | <0.5 PPL points | Per-model bound | n=3 (1 per model) |
-| Canary (text regression) | Exact text match | 0% divergence | Deterministic (CI=100%) | n=12 per model |
+| Comparison | Threshold | Effect Size | n |
+|-----------|-----------|-------------|---|
+| Int4 vs oracle | ≤5/32 mismatches | 15.6% | 12 |
+| Int8 vs oracle | ≤3/32 mismatches | 9.4% | 12 |
+| Int8 vs Int4 drift | Int8 ≤ Int4+1 | ≤1 token | 12 |
+| Cross-runtime | Exact text match | 0% | 12 |
+| PPL Int4 vs Int8 | Diff < 0.5 | <0.5 PPL | 3 |
+| Canary (text) | Exact text match | 0% | 12 |
+
+All checks: CI=100% (deterministic greedy decoding).
 
 ### Statistical Notes
 
-- **Total sample size**: n = 59 parity checks (exhaustive cross-product), plus n = 69 pytest tests including property-based tests with n = 100 iterations each via hypothesis.
-- **Standard deviation**: σ = 0 for all parity checks. Greedy decoding (temperature=0) is fully deterministic — given identical inputs and weights, outputs are bit-for-bit identical across runs. Measurement uncertainty is ±0.
-- **Confidence interval**: [exact, exact] for all checks. 95% and 99% confidence intervals are not applicable because variance = 0 (deterministic). The confidence interval is trivially 100%.
-- **Sample size justification**: 4 prompts × 3 models = n = 12 data points per claim. Prompts cover 4 categories (arithmetic, natural language, code, social) to exercise diverse tokenization paths. 3 models cover 3 architectures (LLaMA, Qwen/GQA, GPT-2). This is exhaustive over the model roster, not a sample. Total: n = 59 checks across 5 suites.
-- **Effect size**: Mismatch thresholds (5/32 = 15.6% ±0 for Int4, 3/32 = 9.4% ±0 for Int8) represent the maximum acceptable quantization-induced token divergence. Cohen's d: large (Int4), medium (Int8).
-- **PPL bounds**: Model-specific ceilings (SmolLM: 20.0, Qwen2: 15.0, GPT-2: 30.0) derived from published perplexity benchmarks, with 2× headroom (σ_headroom ≈ 2× base PPL).
+- **Total sample size**: n = 59 parity checks (exhaustive
+  cross-product), plus n = 69 pytest tests including
+  property-based tests with n = 100 iterations via hypothesis.
+- **Standard deviation**: σ = 0 for all parity checks. Greedy
+  decoding (temperature=0) is fully deterministic. Outputs are
+  bit-for-bit identical across runs. Uncertainty is ±0.
+- **Confidence interval**: [exact, exact] for all checks. 95%
+  and 99% CIs are not applicable (variance = 0). The CI is
+  trivially 100%.
+- **Sample size justification**: 4 prompts × 3 models = n = 12
+  per claim. Prompts cover 4 categories (arithmetic, NLP, code,
+  social). 3 models cover 3 architectures (LLaMA, Qwen/GQA,
+  GPT-2). Exhaustive over the roster. Total: n = 59.
+- **Effect size**: 5/32 = 15.6% ±0 for Int4, 3/32 = 9.4% ±0
+  for Int8. Cohen's d: large (Int4), medium (Int8).
+- **PPL bounds**: Model-specific ceilings (SmolLM: 20.0,
+  Qwen2: 15.0, GPT-2: 30.0) from published benchmarks, with
+  2× headroom (σ_headroom ≈ 2× base PPL).
 
 ## Dataset Documentation
 
@@ -160,7 +191,8 @@ gen_oracle.py ──► oracle/*.json ◄── parity_check.py
 - **Lock files**: `uv.lock` pins all Python dependencies. Rust tools installed via `cargo install --locked`.
 - **Docker**: `Dockerfile` provides fully reproducible environment.
 - **CI**: GitHub Actions runs weekly (see `ci/parity.yml`).
-- **Determinism**: All inference uses greedy decoding. No random seeds needed ([ADR-001](CLAIMS.md#adr-001-greedy-decoding-only)).
+- **Determinism**: All inference uses greedy decoding. No random
+  seeds needed ([ADR-001](CLAIMS.md#adr-001-greedy-decoding-only)).
 - **Versioning**: Oracle JSON includes `transformers_version` and `torch_version` for provenance.
 
 ## License

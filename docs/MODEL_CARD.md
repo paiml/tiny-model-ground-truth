@@ -2,7 +2,9 @@
 
 ## Dataset Purpose
 
-This repository uses 3 tiny language models as test fixtures for Popperian falsification of model format conversions. The models are NOT trained or fine-tuned here — they are downloaded from HuggingFace and used read-only.
+This repository uses 3 tiny language models as test fixtures for Popperian falsification
+of model format conversions. The models are NOT trained or fine-tuned here — they are
+downloaded from HuggingFace and used read-only.
 
 ## Models Used
 

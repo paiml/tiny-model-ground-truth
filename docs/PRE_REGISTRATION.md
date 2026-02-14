@@ -6,13 +6,20 @@
 
 ## Pre-Registered Hypotheses
 
-This document was written and committed **before** executing the test suite against the Sovereign AI Stack's `apr` CLI. It constitutes a pre-registration of our falsifiable predictions.
+This document was written and committed **before** executing
+the test suite against the Sovereign AI Stack's `apr` CLI. It
+constitutes a pre-registration of our falsifiable predictions.
 
 ### Primary Hypothesis
-**H1**: All format conversions (SafeTensors → APR → GGUF → APR) and runtime engines (`apr`, `llama-cli`) in the Sovereign AI Stack produce token-identical greedy outputs for sub-1B parameter models, within bounded quantization drift.
+**H1**: All format conversions (SafeTensors → APR → GGUF → APR)
+and runtime engines (`apr`, `llama-cli`) in the Sovereign AI
+Stack produce token-identical greedy outputs for sub-1B
+parameter models, within bounded quantization drift.
 
 ### Null Hypothesis
-**H0**: At least one format conversion or runtime engine produces outputs that diverge beyond the specified tolerance bounds, indicating a bug.
+**H0**: At least one format conversion or runtime engine produces
+outputs that diverge beyond the specified tolerance bounds,
+indicating a bug.
 
 ### Registered Claims (Pre-Test)
 
@@ -34,4 +41,6 @@ This document was written and committed **before** executing the test suite agai
 
 ### Deviations from Pre-Registration
 
-Any deviation from the above claims (e.g., relaxing tolerances, excluding models) will be documented in CHANGELOG.md with rationale.
+Any deviation from the above claims (e.g., relaxing tolerances,
+excluding models) will be documented in CHANGELOG.md with
+rationale.

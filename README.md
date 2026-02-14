@@ -16,8 +16,8 @@ conversion and runtime engine in the Sovereign AI Stack must
 produce token-identical greedy outputs (or bounded quantization
 drift). A single failure proves a bug.
 
-**Current status**: **0/59 checks passing**. Nine issues filed
-against aprender/realizar — see [Filed Issues](#filed-issues).
+**Current status**: **0/59 checks passing** (but inference now works for SmolLM/Qwen2).
+Twelve issues filed against aprender/realizar — see [Filed Issues](#filed-issues).
 
 See [CLAIMS.md](CLAIMS.md) for pre-registered falsifiable claims and design rationale (ADRs).
 
@@ -49,26 +49,32 @@ uv sync            # Install Python deps (locked via uv.lock)
 
 ## Parity Matrix (Current Results)
 
-| Model | APR Int4 | APR Int8 | GGUF Roundtrip | PPL |
+| Model | APR Int8 | APR Int4 | GGUF Roundtrip | PPL |
 |-------|----------|----------|----------------|-----|
-| SmolLM-135M | **FAIL** Q4 layer zeros | **FAIL** Q8 layer shape | **FAIL** (blocked) | **FAIL** (blocked) |
-| Qwen2-0.5B | **FAIL** Q4 layer zeros | **FAIL** Q8 layer shape | **FAIL** (blocked) | **FAIL** (blocked) |
-| GPT-2 124M | **FAIL** Q4 layer zeros | **FAIL** Q8 layer shape | **FAIL** hidden_dim=0 | **FAIL** (blocked) |
+| SmolLM-135M | **RUNS** but --json broken (#240) | **RUNS** garbled output | **BLOCKED** (#240) | **BLOCKED** (#242) |
+| Qwen2-0.5B | **RUNS** "Paris" correct (#240) | **RUNS** "Paris" correct | **BLOCKED** (#240) | **BLOCKED** (#242) |
+| GPT-2 124M | **FAIL** qkv_weight zeros (#241) | **FAIL** qkv_weight zeros | **FAIL** (#241) | **BLOCKED** (#242) |
 
-Current blocker: realizar's APR transformer loader reads Q8/Q4 bytes as f32 (#239).
+Current blockers:
+- `apr run --json` outputs human-readable text instead of JSON (#240) — blocks programmatic checks
+- GPT-2 fused qkv_weight not dequantized (#241) — blocks all GPT-2 inference
+- `apr eval` rejects APR format, GGUF fused_matmul type error (#242) — blocks PPL checks
 
 ## Filed Issues
 
 | Issue | Bug | Status |
 |-------|-----|--------|
-| [#231](https://github.com/paiml/aprender/issues/231) | Int8 embedding NaN/Inf + shape mismatch | Fixed (skip-quant) |
-| [#232](https://github.com/paiml/aprender/issues/232) | Int4 all-zero embedding tensors | Fixed (skip-quant) |
+| [#231](https://github.com/paiml/aprender/issues/231) | Int8 embedding NaN/Inf + shape mismatch | Fixed |
+| [#232](https://github.com/paiml/aprender/issues/232) | Int4 all-zero embedding tensors | Fixed |
 | [#233](https://github.com/paiml/aprender/issues/233) | GPT-2 tensor name mapping + wpe density | Fixed |
-| [#234](https://github.com/paiml/aprender/issues/234) | lm_head not excluded from quantization | Fixed (skip-quant) |
-| [#235](https://github.com/paiml/aprender/issues/235) | GPT-2 hidden_dim=64 instead of 768 | Fixed (n_embd fallback) |
-| [#236](https://github.com/paiml/aprender/issues/236) | GPT-2 GGUF export hidden_dim=0 | Partial (export OK, reimport fails) |
-| [#237](https://github.com/paiml/aprender/issues/237) | Quantization write pipeline broken for all tensors | Fixed (real Q8/Q4 writes) |
-| [**#239**](https://github.com/paiml/aprender/issues/239) | **realizar loader reads Q8/Q4 bytes as f32** | **Open — current blocker** |
+| [#234](https://github.com/paiml/aprender/issues/234) | lm_head not excluded from quantization | Fixed |
+| [#235](https://github.com/paiml/aprender/issues/235) | GPT-2 hidden_dim=64 instead of 768 | Fixed |
+| [#236](https://github.com/paiml/aprender/issues/236) | GPT-2 GGUF export hidden_dim=0 | Fixed |
+| [#237](https://github.com/paiml/aprender/issues/237) | Quantization write pipeline broken for all tensors | Fixed |
+| [#239](https://github.com/paiml/aprender/issues/239) | realizar loader reads Q8/Q4 bytes as f32 | **Fixed** |
+| [**#240**](https://github.com/paiml/aprender/issues/240) | **`apr run --json` flag ignored** | **Open — blocks programmatic checks** |
+| [**#241**](https://github.com/paiml/aprender/issues/241) | **GPT-2 fused qkv_weight not dequantized** | **Open — blocks GPT-2** |
+| [**#242**](https://github.com/paiml/aprender/issues/242) | **`apr eval` rejects APR + GGUF type error** | **Open — blocks PPL** |
 
 ## Check Suites
 

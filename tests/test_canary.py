@@ -6,8 +6,7 @@ Sample size: n = 12 (3 models x 4 prompts).
 """
 
 import pytest
-
-from helpers import MODELS, MODEL_PROMPT_PARAMS, apr_run_json, load_oracle
+from helpers import MODEL_PROMPT_PARAMS, MODELS, apr_run_json, load_oracle
 
 skip_no_apr = pytest.importorskip("shutil").which("apr") is not None
 pytestmark = [

@@ -17,6 +17,29 @@ test = [
     "pytest-timeout>=2.2.0",
     "hypothesis>=6.100.0",
 ]
+# Operations oracle: Python reference implementations for the 5 most common
+# HuggingFace model operations. Each produces JSON oracle output that future
+# apr versions can be compared against.
+dev = [
+    "ruff>=0.8.0",
+    "ty>=0.0.1a5",
+    "pytest>=8.0.0",
+    "pytest-timeout>=2.2.0",
+    "pytest-cov>=6.0.0",
+    "hypothesis>=6.100.0",
+]
+ops = [
+    "peft>=0.13.0",
+    "bitsandbytes>=0.44.0",
+    "trl>=0.12.0",
+    "optimum>=1.23.0",
+    "onnx>=1.17.0",
+    "onnxruntime>=1.20.0",
+    "auto-gptq>=0.7.0",
+    "llama-cpp-python>=0.3.0",
+    "datasets>=3.0.0",
+    "mergekit>=0.0.5",
+]
 
 [build-system]
 requires = ["hatchling"]
@@ -38,6 +61,28 @@ markers = [
     "property_based: hypothesis property-based tests",
 ]
 timeout = 120
+
+[tool.ty.rules]
+# HuggingFace transformers/torch use heavily dynamic typing that ty can't resolve.
+# Suppress false positives from third-party libraries while keeping useful checks.
+unresolved-attribute = "ignore"
+call-non-callable = "ignore"
+invalid-assignment = "ignore"
+unresolved-import = "ignore"
+invalid-argument-type = "ignore"
+unknown-argument = "ignore"
+invalid-return-type = "ignore"
+not-iterable = "ignore"
+unsupported-operator = "ignore"
+not-subscriptable = "ignore"
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "PIE", "RUF"]
+ignore = ["E501"]  # line length handled by formatter
 
 [tool.coverage.run]
 source = ["scripts"]

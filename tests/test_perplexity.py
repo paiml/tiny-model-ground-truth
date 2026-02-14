@@ -1,13 +1,12 @@
 """Claims 7 & 8: Perplexity bounds and drift.
 
 Claim 7: PPL < model-specific ceiling (SmolLM < 20.0, Qwen2 < 15.0, GPT-2 < 30.0).
-Claim 8: |PPL_Int4 - PPL_Int8| < 0.5 for each model (σ = 0, deterministic).
+Claim 8: |PPL_Int4 - PPL_Int8| < 0.5 for each model (sigma = 0, deterministic).
 Sample size: n = 6 (Claim 7), n = 3 (Claim 8).
 """
 
 import pytest
-
-from helpers import MODELS, MODEL_PARAMS, apr_eval_json
+from helpers import MODEL_PARAMS, MODELS, apr_eval_json
 
 PPL_DRIFT_THRESHOLD = 0.5  # Claim 8
 
@@ -32,7 +31,7 @@ def test_perplexity_within_ceiling(slug: str, quant: str):
 
 @pytest.mark.parametrize("slug", MODEL_PARAMS)
 def test_perplexity_drift_within_bound(slug: str):
-    """|PPL_Int4 - PPL_Int8| < 0.5 (Claim 8). σ = 0 (deterministic)."""
+    """|PPL_Int4 - PPL_Int8| < 0.5 (Claim 8). sigma = 0 (deterministic)."""
     data4, err4 = apr_eval_json(str(MODELS[slug]["int4"]))
     assert err4 is None, f"Int4 apr eval failed: {err4}"
 

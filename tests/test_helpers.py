@@ -10,9 +10,9 @@ Test categories:
 """
 
 import pytest
-from hypothesis import given, settings, strategies as st
-
 from helpers import count_mismatches
+from hypothesis import given, settings
+from hypothesis import strategies as st
 
 
 @pytest.mark.property_based

@@ -7,10 +7,12 @@ Sample size: n = 24 (3 models x 4 prompts x 2 quant levels).
 """
 
 import pytest
-
 from helpers import (
-    MODELS, MODEL_PROMPT_PARAMS,
-    apr_run_json, count_mismatches, load_oracle,
+    MODEL_PROMPT_PARAMS,
+    MODELS,
+    apr_run_json,
+    count_mismatches,
+    load_oracle,
 )
 
 INT4_THRESHOLD = 5  # Claim 2: <=5/32 mismatches

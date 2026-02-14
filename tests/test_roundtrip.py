@@ -9,10 +9,13 @@ import subprocess
 from pathlib import Path
 
 import pytest
-
 from helpers import (
-    MODELS, MODEL_PARAMS, MODELS_DIR,
-    apr_run_json, count_mismatches, load_oracle,
+    MODEL_PARAMS,
+    MODELS,
+    MODELS_DIR,
+    apr_run_json,
+    count_mismatches,
+    load_oracle,
 )
 
 ROUNDTRIP_PROMPTS = ["completion", "arithmetic"]

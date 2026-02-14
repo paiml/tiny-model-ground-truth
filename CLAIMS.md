@@ -74,6 +74,79 @@ A single test failure constitutes evidence for H0 (a bug exists).
   quantization-induced perplexity shift for sub-1B parameter models.
 - **Sample size**: 3 test cases (1 per model).
 
+### Claim 9: Metadata Consistency
+- **Statement**: `apr inspect` output matches expected architecture parameters (architecture, num_layers, num_heads, hidden_size, vocab_size) for all models at both quantization levels.
+- **Falsification**: Any field mismatch between `apr inspect --json` output and MODEL_METADATA in `parity_check.py`.
+- **Threshold**: Exact match on all fields.
+- **Sample size**: 6 test cases (3 models x 2 quantization levels).
+
+### Claim 10: Model Integrity
+- **Statement**: `apr validate` passes magic, header, and version checks for all APR model files.
+- **Falsification**: Any `status != PASS` in `apr validate --json` output.
+- **Threshold**: All validation checks pass (0 tolerance).
+- **Sample size**: 6 test cases (3 models x 2 quantization levels).
+
+### Claim 11: Tensor Structure
+- **Statement**: `apr tensors` returns a non-empty tensor list for all APR model files, confirming correct internal structure.
+- **Falsification**: Empty or missing tensor list from `apr tensors --json`.
+- **Threshold**: tensor_count > 0.
+- **Sample size**: 6 test cases (3 models x 2 quantization levels).
+
+### Claim 12: Lint Compliance
+- **Statement**: `apr lint` reports no critical-severity violations for any APR model file.
+- **Falsification**: Any violation with `severity == "critical"` in `apr lint --json` output.
+- **Threshold**: 0 critical violations (warnings acceptable).
+- **Sample size**: 6 test cases (3 models x 2 quantization levels).
+
+### Claim 13: Pipeline Self-Test
+- **Statement**: `apr check` passes at least 7 of 10 pipeline stages (Embedding, RoPE, QKV, Attention, MLP, LayerNorm, LM Head, etc.) for all models.
+- **Falsification**: Any model where `passed_stages < 7` in `apr check --json` output.
+- **Threshold**: >= 7/10 stages pass.
+- **Sample size**: 6 test cases (3 models x 2 quantization levels).
+
+### Claim 14: Quantization Diff Consistency
+- **Statement**: `apr diff` between Int8 and Int4 variants of the same model shows only dtype/size differences, not structural tensor mismatches.
+- **Falsification**: Any difference classified as structural (missing tensors, shape mismatches) rather than dtype/size.
+- **Threshold**: 0 structural differences.
+- **Sample size**: 3 test cases (1 per model).
+
+### Claim 15: Architecture Tree
+- **Statement**: `apr tree` reports layer counts matching expected architecture parameters for all models.
+- **Falsification**: Any `num_layers` mismatch between `apr tree --json` output and MODEL_METADATA.
+- **Threshold**: Exact match on layer count.
+- **Sample size**: 6 test cases (3 models x 2 quantization levels).
+
+### Claim 16: Model Identification
+- **Statement**: `apr oracle` correctly identifies the architecture family (llama, qwen2, gpt2) for all models at both quantization levels.
+- **Falsification**: Any `architecture` field not containing the expected family string.
+- **Threshold**: Architecture substring match.
+- **Sample size**: 6 test cases (3 models x 2 quantization levels).
+
+### Claim 17: Tensor Data Quality
+- **Statement**: Quantized tensors contain non-zero data as verified by `apr hex --stats`, confirming successful quantization write.
+- **Falsification**: Any tensor with `std == 0` (constant or all-zero data).
+- **Threshold**: std > 0 for sampled tensors.
+- **Sample size**: 6 test cases (3 models x 2 quantization levels).
+
+### Claim 18: Model Health
+- **Statement**: `apr debug` reports healthy status for all APR model files, confirming file integrity and loadability.
+- **Falsification**: Any `health != OK` in `apr debug --json` output, or presence of error fields.
+- **Threshold**: health == OK (or no error indicators).
+- **Sample size**: 6 test cases (3 models x 2 quantization levels).
+
+### Claim 19: Throughput Minimum
+- **Statement**: `apr bench` produces throughput > 0 tok/s for all models, confirming the inference pipeline executes end-to-end.
+- **Falsification**: Any `tokens_per_second == 0` or bench crash.
+- **Threshold**: tok/s > 0.
+- **Status**: Currently expected to fail (0 tok/s bug) — documents the defect.
+- **Sample size**: 6 test cases (3 models x 2 quantization levels).
+
+### Claim 20: QA Gate
+- **Statement**: `apr qa` executes at least 3 quality gates without critical failure for all models.
+- **Falsification**: Fewer than 3 gates executed, or any gate with `severity == "critical"` and `status == "FAIL"`.
+- **Threshold**: >= 3 gates executed, 0 critical failures.
+- **Sample size**: 6 test cases (3 models x 2 quantization levels).
+
 ## Design Decisions (ADR)
 
 ### ADR-001: Greedy Decoding Only

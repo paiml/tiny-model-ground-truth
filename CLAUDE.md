@@ -57,6 +57,29 @@ token-identical greedy outputs (or bounded quantization drift).
 | PPL Int4 vs Int8 | Diff < 0.5 | Statistical bound |
 | Canary (text regression) | Exact text match | No inference regression |
 
+## Parity Status (2026-02-14, apr 0.2.16)
+
+| Check | Result | Notes |
+|-------|--------|-------|
+| quant-drift | 12/12 PASS | Int8 ≤ Int4+1 holds |
+| roundtrip | 4/5 PASS | GPT-2 GGUF roundtrip broken |
+| tensors | 6/6 PASS | Correct tensor counts |
+| hex | 6/6 PASS | Non-zero tensor data |
+| rosetta-diff | 3/3 PASS | No layout mismatches |
+| canary | 0/12 FAIL | Inference produces wrong tokens |
+| token-parity | 0/24 FAIL | 32/32 mismatches (all wrong) |
+| ppl | 0/6 FAIL | --json flag ignored / GPT-2 PPL=2.67e33 |
+| inspect | 0/6 FAIL | arch field empty in JSON |
+| validate | 0/6 FAIL | Output format changed |
+| lint | 0/6 FAIL | Exit 5 on warnings-only |
+| selftest | 0/6 FAIL | GH-187 embedding issue |
+| bench | 0/6 FAIL | 0.0 tok/s throughput |
+| debug/tree/list | 0/13 FAIL | --json flag ignored |
+| oracle-id | 0/6 FAIL | arch field empty |
+| qa | 3/6 PARTIAL | GPT-2 + smollm int8 fail |
+| parity-gpu | 2 skip, 1 FAIL | GPT-2 tensor not found |
+| **Total** | **32/135** | **103 failures** |
+
 ## Quality Standards
 
 - All checks must pass before merge

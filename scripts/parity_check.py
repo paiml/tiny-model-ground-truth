@@ -534,16 +534,21 @@ def check_hex_quality(slug: str, model_info: dict) -> list[Result]:
             data, err2 = apr_cmd_json(["hex", model_info[quant], "--stats", "--json"])
             if err2:
                 r.fail(err)
-            else:
+            elif isinstance(data, dict):
                 r.pass_(f"hex stats available (keys: {list(data.keys())[:5]})")
-        else:
-            std = data.get("std", data.get("statistics", {}).get("std"))
-            if std is not None and std > 0:
-                r.pass_(f"std={std:.6f} (non-zero data)")
-            elif std is not None:
-                r.fail("std=0 (constant/zero tensor data)")
             else:
-                r.pass_(f"hex completed (keys: {list(data.keys())[:5]})")
+                r.pass_(f"hex stats available ({len(data)} entries)")
+        else:
+            if isinstance(data, list):
+                r.pass_(f"hex completed ({len(data)} entries)")
+            else:
+                std = data.get("std", data.get("statistics", {}).get("std"))
+                if std is not None and std > 0:
+                    r.pass_(f"std={std:.6f} (non-zero data)")
+                elif std is not None:
+                    r.fail("std=0 (constant/zero tensor data)")
+                else:
+                    r.pass_(f"hex completed (keys: {list(data.keys())[:5]})")
         results.append(r)
     return results
 

@@ -32,6 +32,13 @@ indicating a bug.
 7. PPL < model-specific ceiling for each quantization level (n=6)
 8. |PPL_Int4 - PPL_Int8| < 0.5 for each model (n=3)
 
+### GPU Precision Ladder Claims (Post-Registration Addendum)
+
+9. BF16 GPU produces ≤3/32 token mismatches vs float32 CPU oracle (n=12)
+10. FP16 GPU produces ≤5/32 token mismatches vs float32 CPU oracle (n=12)
+11. BF16 mismatches ≤ FP16 mismatches for same prompt (precision ladder monotonicity, n=12)
+12. BF16 vs FP16 inter-precision drift ≤3/32 (n=12)
+
 ### Analysis Plan
 
 - All tests are deterministic (greedy decoding). No statistical analysis needed.

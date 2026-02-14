@@ -6,7 +6,7 @@
 |-----------|-------|
 | CPU | Any x86_64 or ARM64 |
 | RAM | >=4GB |
-| GPU | Not required |
+| GPU | Not required (CUDA optional for GPU oracle) |
 | OS | Linux (Ubuntu 22.04+ recommended) |
 | Rust | 1.84+ |
 | Python | 3.11+ |
@@ -22,7 +22,8 @@
 | temperature | 0.0 | Deterministic greedy decoding |
 | do_sample | false | No stochastic sampling |
 | dtype (oracle) | float32 | Maximum precision baseline |
-| device | cpu | Avoids GPU non-determinism |
+| dtype (GPU oracle) | bfloat16, float16 | Precision ladder variants |
+| device | cpu (default), cuda (GPU oracle) | CPU avoids non-determinism; GPU tests precision drift |
 | num_prompts | 4 | Covers arithmetic, NLP, code, social categories |
 | num_models | 3 | Covers LLaMA, Qwen/GQA, GPT-2 architectures |
 | num_runs | 1 | Deterministic tests require only 1 run |
@@ -55,4 +56,5 @@ All parity checks are deterministic (greedy decoding, temperature = 0):
 | `make check` | ~2 min ±30s (59 checks, each invokes apr inference) |
 | `make test` | ~3s ±1s (property-based tests only, no apr needed) |
 | `make oracle` | ~5 min ±2 min (3 model loads + inference) |
+| `make oracle-gpu` | ~3 min ±1 min (GPU inference, 2 precisions × 3 models) |
 | Full CI (`make ci`) | ~5 min ±2 min |

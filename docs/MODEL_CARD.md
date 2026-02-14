@@ -54,6 +54,25 @@ downloaded from HuggingFace and used read-only.
 | `device_map` | `cpu` | Avoids GPU non-determinism |
 | Random seed | Not set | Greedy decode is fully deterministic; seed has no effect |
 
+## GPU Inference Configuration (Precision Ladder)
+
+| Parameter | Value | Justification |
+|-----------|-------|---------------|
+| `do_sample` | `false` | Deterministic greedy decoding |
+| `max_new_tokens` | `32` | Matches CPU oracle |
+| `torch_dtype` | `bfloat16` or `float16` | Precision ladder variants |
+| `device_map` | `cuda` | GPU inference for drift measurement |
+| Output directory | `oracle-gpu/{slug}/{precision}/` | Separate from CPU baseline |
+
+### Precision Ladder Tolerance Bounds
+
+| Comparison | Max Mismatches | Rationale |
+|------------|---------------|-----------|
+| BF16 vs float32 | ≤3/32 | BF16 has 8 exponent bits, same range as float32 |
+| FP16 vs float32 | ≤5/32 | FP16 narrower range, more drift expected |
+| BF16 vs FP16 | ≤3/32 | Inter-precision agreement bound |
+| Ladder ordering | BF16 ≤ FP16 drift | Monotonic: higher precision → less drift |
+
 ## Ethical Considerations
 
 - Models are used for infrastructure testing only, not for generation of content

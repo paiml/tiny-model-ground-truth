@@ -6,7 +6,10 @@ from pathlib import Path
 
 ROOT = Path(__file__).parent.parent
 ORACLE_DIR = ROOT / "oracle"
+ORACLE_GPU_DIR = ROOT / "oracle-gpu"
 MODELS_DIR = ROOT / "models"
+
+PRECISIONS = ["bfloat16", "float16"]
 
 MODEL_METADATA = {
     "smollm-135m": {
@@ -141,6 +144,12 @@ def apr_cmd_json(args: list[str]) -> tuple[dict | None, str | None]:
         return json.loads(stdout), None
     except json.JSONDecodeError:
         return None, f"apr {args[0]} returned invalid JSON: {stdout[:200]}"
+
+
+def load_gpu_oracle(slug: str, precision: str, prompt_name: str) -> dict:
+    """Load a GPU/precision oracle JSON file."""
+    path = ORACLE_GPU_DIR / slug / precision / f"{prompt_name}.json"
+    return json.loads(path.read_text())
 
 
 def count_mismatches(a: list[int], b: list[int]) -> int:

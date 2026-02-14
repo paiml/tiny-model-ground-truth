@@ -7,7 +7,22 @@
 ```bash
 uv run python scripts/gen_oracle.py --all          # All 3 models
 uv run python scripts/gen_oracle.py --model smollm-135m  # Single model
+
+# GPU / precision variants
+uv run python scripts/gen_oracle.py --all --device cuda --precision bfloat16
+uv run python scripts/gen_oracle.py --all --device cuda --precision float16
+uv run --extra gpu python scripts/gen_oracle.py --all --device cuda --precision bfloat16 --use-kernels
 ```
+
+### CLI Flags
+
+| Flag | Values | Default | Description |
+|------|--------|---------|-------------|
+| `--all` | — | — | Generate oracles for all models |
+| `--model` | `smollm-135m`, `qwen2-0.5b`, `gpt2-124m` | — | Single model |
+| `--device` | `cpu`, `cuda` | `cpu` | Inference device |
+| `--precision` | `float32`, `bfloat16`, `float16` | `float32` | Model dtype |
+| `--use-kernels` | — | off | Enable HF custom CUDA kernels |
 
 ### Models Registry
 
@@ -19,7 +34,7 @@ uv run python scripts/gen_oracle.py --model smollm-135m  # Single model
 
 ### Output Format
 
-Each oracle JSON file (`oracle/{slug}/{prompt_name}.json`) contains:
+Each CPU oracle JSON file (`oracle/{slug}/{prompt_name}.json`) contains:
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -28,7 +43,7 @@ Each oracle JSON file (`oracle/{slug}/{prompt_name}.json`) contains:
 | `prompt` | string | Input prompt text |
 | `prompt_file` | string | Source prompt filename |
 | `runtime` | string | Always `"transformers"` |
-| `format` | string | Always `"float32"` |
+| `format` | string | Precision dtype (`"float32"`, `"bfloat16"`, `"float16"`) |
 | `transformers_version` | string | HuggingFace transformers version |
 | `torch_version` | string | PyTorch version |
 | `tokens` | int[] | Generated token IDs (length = max_new_tokens) |
@@ -36,6 +51,18 @@ Each oracle JSON file (`oracle/{slug}/{prompt_name}.json`) contains:
 | `token_count` | int | Number of generated tokens |
 | `max_new_tokens` | int | Always 32 |
 | `do_sample` | bool | Always false (greedy) |
+
+GPU oracle files (`oracle-gpu/{slug}/{precision}/{prompt_name}.json`) include
+all CPU fields plus:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `device` | string | `"cuda"` |
+| `precision` | string | `"bfloat16"` or `"float16"` |
+| `cuda_version` | string | CUDA toolkit version (e.g. `"12.8"`) |
+| `gpu_name` | string | GPU device name |
+| `kernels_version` | string | HF kernels package version (if `--use-kernels`) |
+| `kernels_enabled` | bool | Whether custom kernels were active (if `--use-kernels`) |
 
 ## Parity Checker (`scripts/parity_check.py`)
 
@@ -74,4 +101,6 @@ uv run python scripts/parity_check.py --ticket             # GitHub issue markdo
 | `ticket` | Generate GitHub issue markdown for failures |
 | `ci` | Full pipeline: pull + convert + check |
 | `recheck` | After apr upgrades: clean + convert + check |
+| `oracle-gpu` | Generate BF16/FP16 GPU oracles (requires CUDA) |
+| `oracle-gpu-kernels` | GPU oracles with HF custom kernels |
 | `clean` | Remove generated model files |

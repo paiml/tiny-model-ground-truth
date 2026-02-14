@@ -1,7 +1,15 @@
-.PHONY: oracle pull convert check check-canary check-token check-drift check-roundtrip check-ppl check-inspect check-validate check-tensors check-lint check-selftest check-diff check-tree check-oracle-id check-hex check-debug check-bench check-qa check-list check-rosetta-diff check-parity-gpu test test-parity test-canary test-token test-drift test-roundtrip test-ppl test-inspect test-validate test-tensors test-selftest coverage ticket ci recheck clean oracle-quantize oracle-finetune oracle-merge oracle-convert oracle-prune oracle-ops lint typecheck
+.PHONY: oracle oracle-gpu oracle-gpu-kernels pull convert check check-canary check-token check-drift check-roundtrip check-ppl check-inspect check-validate check-tensors check-lint check-selftest check-diff check-tree check-oracle-id check-hex check-debug check-bench check-qa check-list check-rosetta-diff check-parity-gpu test test-parity test-canary test-token test-drift test-roundtrip test-ppl test-inspect test-validate test-tensors test-selftest coverage ticket ci recheck clean oracle-quantize oracle-finetune oracle-merge oracle-convert oracle-prune oracle-ops lint typecheck
 
 oracle:
 	uv run python scripts/gen_oracle.py --all
+
+oracle-gpu:
+	uv run python scripts/gen_oracle.py --all --device cuda --precision bfloat16
+	uv run python scripts/gen_oracle.py --all --device cuda --precision float16
+
+oracle-gpu-kernels:
+	uv run --extra gpu python scripts/gen_oracle.py --all --device cuda --precision bfloat16 --use-kernels
+	uv run --extra gpu python scripts/gen_oracle.py --all --device cuda --precision float16 --use-kernels
 
 pull:
 	apr pull hf://HuggingFaceTB/SmolLM-135M

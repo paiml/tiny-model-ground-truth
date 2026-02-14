@@ -45,6 +45,8 @@ token-identical greedy outputs (or bounded quantization drift).
 | `make ticket` | Generate GitHub issue markdown for failures |
 | `make ci` | Full pipeline (pull + convert + check) |
 | `make recheck` | After apr upgrades (clean + convert + check) |
+| `make oracle-gpu` | Generate BF16/FP16 GPU oracles (requires CUDA) |
+| `make oracle-gpu-kernels` | GPU oracles with HF custom kernels (requires CUDA + kernels) |
 | `make clean` | Remove generated model files |
 
 ## Tolerance Standards
@@ -55,6 +57,10 @@ token-identical greedy outputs (or bounded quantization drift).
 | Int8 tokens vs oracle | ≤3/32 mismatches | Higher precision |
 | Int8 vs Int4 drift | Int8 ≤ Int4 + 1 | Int8 strictly better |
 | PPL Int4 vs Int8 | Diff < 0.5 | Statistical bound |
+| BF16 tokens vs float32 | ≤3/32 mismatches | GPU precision drift |
+| FP16 tokens vs float32 | ≤5/32 mismatches | GPU precision drift |
+| BF16 vs FP16 drift | ≤3/32 mismatches | Inter-precision bound |
+| Precision ladder | BF16 ≤ FP16 drift | Monotonic ordering |
 | Canary (text regression) | Exact text match | No inference regression |
 
 ## Parity Status (2026-02-14, apr 0.2.16)

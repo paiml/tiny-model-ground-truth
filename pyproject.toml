@@ -90,4 +90,5 @@ branch = true
 
 [tool.coverage.report]
 show_missing = true
-include = ["tests/helpers.py", "scripts/*.py"]
+include = ["tests/helpers.py", "scripts/parity_check.py"]
+fail_under = 95

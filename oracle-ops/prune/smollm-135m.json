@@ -1,0 +1,15 @@
+[
+  {
+    "method": "magnitude",
+    "tool": "manual magnitude pruning (threshold sort)",
+    "model": "HuggingFaceTB/SmolLM-135M",
+    "slug": "smollm-135m",
+    "target_sparsity": 0.3,
+    "actual_sparsity": 0.2992,
+    "total_params": 134515008,
+    "prune_time_s": 20.4,
+    "output_dir": "models/smollm-135m-pruned-mag30",
+    "sanity_text": " the capital of the country, Paris. France is also the capital of the country",
+    "apr_equivalent": "apr prune HuggingFaceTB/SmolLM-135M --method magnitude --target-ratio 0.3 -o models/smollm-135m-pruned-mag30.apr"
+  }
+]

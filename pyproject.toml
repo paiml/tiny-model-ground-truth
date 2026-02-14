@@ -35,10 +35,7 @@ ops = [
     "optimum>=1.23.0",
     "onnx>=1.17.0",
     "onnxruntime>=1.20.0",
-    "auto-gptq>=0.7.0",
-    "llama-cpp-python>=0.3.0",
     "datasets>=3.0.0",
-    "mergekit>=0.0.5",
 ]
 
 [build-system]

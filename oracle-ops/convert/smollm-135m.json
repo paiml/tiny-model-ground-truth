@@ -1,0 +1,14 @@
+[
+  {
+    "format": "safetensors",
+    "tool": "transformers save_pretrained(safe_serialization=True)",
+    "transformers_version": "5.1.0",
+    "model": "HuggingFaceTB/SmolLM-135M",
+    "slug": "smollm-135m",
+    "convert_time_s": 1.06,
+    "output_dir": "models/smollm-135m-safetensors",
+    "file_count": 1,
+    "total_bytes": 538090408,
+    "apr_equivalent": "apr export smollm-135m.apr --format safetensors -o models/smollm-135m-safetensors"
+  }
+]

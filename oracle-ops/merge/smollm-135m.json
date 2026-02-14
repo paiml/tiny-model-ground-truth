@@ -1,0 +1,13 @@
+[
+  {
+    "method": "average",
+    "tool": "manual weighted average",
+    "weight": 0.5,
+    "model": "HuggingFaceTB/SmolLM-135M",
+    "slug": "smollm-135m",
+    "merge_time_s": 5.32,
+    "output_dir": "models/smollm-135m-merge-avg",
+    "tensor_count": 273,
+    "apr_equivalent": "apr merge model_a.apr model_b.apr --strategy average --weights 0.5 -o models/smollm-135m-merge-avg.apr"
+  }
+]

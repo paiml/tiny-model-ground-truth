@@ -1,0 +1,13 @@
+[
+  {
+    "method": "dynamic_int8",
+    "tool": "torch.ao.quantization.quantize_dynamic",
+    "torch_version": "2.10.0+cu128",
+    "model": "HuggingFaceTB/SmolLM-135M",
+    "slug": "smollm-135m",
+    "quantize_time_s": 16.07,
+    "param_bytes": 113386752,
+    "output_file": "models/smollm-135m-dynamic-int8.pt",
+    "sanity_text": " located in the capital city of Paris, and the capital city of the United States"
+  }
+]

@@ -85,7 +85,7 @@ def finetune_lora(slug: str, hf_id: str) -> dict:
         logging_steps=1,
         save_strategy="no",
         report_to="none",
-        no_cuda=True,
+        use_cpu=True,
     )
 
     from transformers import Trainer
@@ -236,7 +236,7 @@ def finetune_full(slug: str, hf_id: str) -> dict:
         logging_steps=1,
         save_strategy="no",
         report_to="none",
-        no_cuda=True,
+        use_cpu=True,
     )
 
     from transformers import Trainer

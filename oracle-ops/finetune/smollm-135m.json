@@ -1,0 +1,30 @@
+[
+  {
+    "method": "lora",
+    "tool": "peft LoraConfig + transformers Trainer",
+    "peft_version": "0.18.1",
+    "transformers_version": "5.1.0",
+    "model": "HuggingFaceTB/SmolLM-135M",
+    "slug": "smollm-135m",
+    "rank": 8,
+    "alpha": 16,
+    "target_modules": [
+      "q_proj",
+      "v_proj"
+    ],
+    "trainable_params": 460800,
+    "total_params": 134975808,
+    "trainable_pct": 0.34,
+    "train_time_s": 3.88,
+    "output_dir": "models/smollm-135m-lora-r8",
+    "adapter_files": [
+      "README.md",
+      "adapter_config.json",
+      "adapter_model.safetensors",
+      "tokenizer.json",
+      "tokenizer_config.json"
+    ],
+    "sanity_text": " Paris. It is the largest city in France and the second largest in the world",
+    "apr_equivalent": "apr finetune HuggingFaceTB/SmolLM-135M --method lora --rank 8 --data train.jsonl -o models/smollm-135m-lora-r8"
+  }
+]

@@ -1,0 +1,99 @@
+roadmap_version: '1.0'
+github_enabled: true
+github_repo: paiml/tiny-model-ground-truth
+roadmap:
+- id: PMAT-001
+  github_issue: null
+  item_type: task
+  title: Oracle drift detection tests
+  status: completed
+  priority: high
+  assigned_to: null
+  created: 2026-02-14T17:21:46Z
+  updated: 2026-02-14T17:31:18Z
+  spec: null
+  acceptance_criteria:
+  - Hash oracle JSON files and verify they don't change between transformers runs. Catch silent HF/torch regressions before blaming apr.
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels:
+  - test
+  - oracle
+  notes: null
+- id: PMAT-002
+  github_issue: null
+  item_type: task
+  title: Property-based tests with hypothesis for check functions
+  status: completed
+  priority: high
+  assigned_to: null
+  created: 2026-02-14T17:21:49Z
+  updated: 2026-02-14T17:31:24Z
+  spec: null
+  acceptance_criteria:
+  - Fuzz all 20 check_* functions with random token sequences, perplexity values, malformed JSON. Target count_mismatches edge cases, format_ticket with unicode/ANSI.
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels:
+  - test
+  - hypothesis
+  notes: null
+- id: PMAT-003
+  github_issue: null
+  item_type: task
+  title: Oracle-ops output schema validation tests
+  status: completed
+  priority: medium
+  assigned_to: null
+  created: 2026-02-14T17:21:51Z
+  updated: 2026-02-14T17:31:24Z
+  spec: null
+  acceptance_criteria:
+  - Test the 5 oracle scripts (quantize, finetune, merge, convert, prune) produce valid JSON matching the schema parity_check.py expects.
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels:
+  - test
+  - oracle-ops
+  notes: null
+- id: PMAT-004
+  github_issue: null
+  item_type: task
+  title: Multi-version transformers regression matrix
+  status: planned
+  priority: medium
+  assigned_to: null
+  created: 2026-02-14T17:21:53Z
+  updated: 2026-02-14T17:21:53Z
+  spec: null
+  acceptance_criteria:
+  - Pin transformers at 4.45, 5.0, 5.1 and verify oracle output is bitwise identical. Document which version introduced any delta.
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels:
+  - test
+  - regression
+  notes: null
+- id: PMAT-005
+  github_issue: null
+  item_type: task
+  title: Makefile target smoke tests
+  status: completed
+  priority: low
+  assigned_to: null
+  created: 2026-02-14T17:21:54Z
+  updated: 2026-02-14T17:31:24Z
+  spec: null
+  acceptance_criteria:
+  - Parse Makefile, extract .PHONY targets, verify each is covered by a test or check function. Ensure CLAUDE.md command table stays in sync.
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels:
+  - test
+  - makefile
+  notes: null

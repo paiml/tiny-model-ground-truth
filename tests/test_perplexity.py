@@ -10,10 +10,9 @@ from helpers import MODEL_PARAMS, MODELS, apr_eval_json
 
 PPL_DRIFT_THRESHOLD = 0.5  # Claim 8
 
-skip_no_apr = pytest.importorskip("shutil").which("apr") is not None
 pytestmark = [
+    pytest.mark.requires_apr,
     pytest.mark.perplexity,
-    pytest.mark.skipif(not skip_no_apr, reason="apr CLI not in PATH"),
 ]
 
 

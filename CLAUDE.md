@@ -33,6 +33,9 @@ token-identical greedy outputs (or bounded quantization drift).
 | `make oracle` | Generate golden JSON from HuggingFace transformers |
 | `make pull` | Download models from HuggingFace |
 | `make convert` | Import/export to APR and GGUF formats |
+| `make test` | Unit + property tests (no apr/model deps, 60s timeout) |
+| `make test-parity` | Integration parity tests (requires apr + models) |
+| `make coverage` | Coverage report for unit tests (term + HTML) |
 | `make check` | Run all parity checks (shells out to `apr run`) |
 | `make check-canary` | Golden output regression (Int8 exact match) |
 | `make check-token` | Token mismatch bounds (Int4 ≤5/32, Int8 ≤3/32) |

@@ -20,10 +20,9 @@ from helpers import (
 
 ROUNDTRIP_PROMPTS = ["completion", "arithmetic"]
 
-skip_no_apr = pytest.importorskip("shutil").which("apr") is not None
 pytestmark = [
+    pytest.mark.requires_apr,
     pytest.mark.roundtrip,
-    pytest.mark.skipif(not skip_no_apr, reason="apr CLI not in PATH"),
 ]
 
 
@@ -40,7 +39,7 @@ def test_apr_gguf_apr_roundtrip_tokens_identical(slug: str, prompt_name: str):
 
         proc = subprocess.run(
             ["apr", "import", str(gguf_path), "-o", str(reimported)],
-            capture_output=True, text=True, timeout=120,
+            capture_output=True, text=True, timeout=60,
         )
         assert proc.returncode == 0, (
             f"reimport failed (exit {proc.returncode}): {proc.stderr.strip()}"

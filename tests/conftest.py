@@ -29,9 +29,17 @@ def models_available() -> bool:
     return all((MODELS_DIR / f).exists() for f in model_files)
 
 
-skip_no_apr = pytest.mark.skipif(
-    not apr_available(), reason="apr CLI not in PATH"
-)
-skip_no_models = pytest.mark.skipif(
-    not models_available(), reason="model files not found (run make convert)"
-)
+def pytest_collection_modifyitems(config, items):
+    """Auto-skip requires_apr tests when apr or models are unavailable."""
+    has_apr = apr_available()
+    has_models = models_available()
+
+    skip_apr = pytest.mark.skip(reason="apr CLI not in PATH")
+    skip_models = pytest.mark.skip(reason="model files not found (run make convert)")
+
+    for item in items:
+        if "requires_apr" in {m.name for m in item.iter_markers()}:
+            if not has_apr:
+                item.add_marker(skip_apr)
+            elif not has_models:
+                item.add_marker(skip_models)

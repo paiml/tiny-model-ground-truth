@@ -18,10 +18,9 @@ from helpers import (
 INT4_THRESHOLD = 5  # Claim 2: <=5/32 mismatches
 INT8_THRESHOLD = 3  # Claim 3: <=3/32 mismatches
 
-skip_no_apr = pytest.importorskip("shutil").which("apr") is not None
 pytestmark = [
+    pytest.mark.requires_apr,
     pytest.mark.token_parity,
-    pytest.mark.skipif(not skip_no_apr, reason="apr CLI not in PATH"),
 ]
 
 

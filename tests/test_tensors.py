@@ -8,10 +8,9 @@ Sample size: n = 6 (3 models x 2 quantization levels).
 import pytest
 from helpers import MODEL_QUANT_PARAMS, MODELS, apr_cmd_json
 
-skip_no_apr = pytest.importorskip("shutil").which("apr") is not None
 pytestmark = [
+    pytest.mark.requires_apr,
     pytest.mark.tensors,
-    pytest.mark.skipif(not skip_no_apr, reason="apr CLI not in PATH"),
 ]
 
 

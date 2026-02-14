@@ -77,10 +77,10 @@ def apr_run_json(model_path: str, prompt: str) -> tuple[dict | None, str | None]
     try:
         proc = subprocess.run(
             ["apr", "run", str(model_path), "-p", prompt, "-n", "32", "--json"],
-            capture_output=True, text=True, timeout=120,
+            capture_output=True, text=True, timeout=55,
         )
     except subprocess.TimeoutExpired:
-        return None, "TIMEOUT after 120s"
+        return None, "TIMEOUT after 55s"
     except FileNotFoundError:
         return None, "apr not found in PATH"
 
@@ -96,10 +96,10 @@ def apr_eval_json(model_path: str) -> tuple[dict | None, str | None]:
     try:
         proc = subprocess.run(
             ["apr", "eval", str(model_path), "--threshold", "50.0", "--json"],
-            capture_output=True, text=True, timeout=120,
+            capture_output=True, text=True, timeout=55,
         )
     except subprocess.TimeoutExpired:
-        return None, "TIMEOUT after 120s"
+        return None, "TIMEOUT after 55s"
     except FileNotFoundError:
         return None, "apr not found in PATH"
 
@@ -123,11 +123,11 @@ def run_apr(args: list[str]) -> tuple[str, str, int]:
             ["apr", *args],
             capture_output=True,
             text=True,
-            timeout=120,
+            timeout=55,
         )
         return proc.stdout, proc.stderr, proc.returncode
     except subprocess.TimeoutExpired:
-        return "", "TIMEOUT after 120s", 1
+        return "", "TIMEOUT after 55s", 1
     except FileNotFoundError:
         return "", "apr not found in PATH", 127
 

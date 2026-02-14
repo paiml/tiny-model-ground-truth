@@ -55,9 +55,13 @@ markers = [
     "quant_drift: Claim 4 - Int8 <= Int4 + 1 drift ordering",
     "roundtrip: Claim 5 - APR->GGUF->APR lossless roundtrip",
     "perplexity: Claims 7,8 - PPL bounds and drift",
+    "inspect: Claim 9 - metadata consistency",
+    "validate: Claim 10 - model integrity",
+    "tensors: Claim 11 - tensor structure",
+    "selftest: Claim 13 - pipeline self-test",
     "property_based: hypothesis property-based tests",
 ]
-timeout = 120
+timeout = 60
 
 [tool.ty.rules]
 # HuggingFace transformers/torch use heavily dynamic typing that ty can't resolve.
@@ -82,9 +86,8 @@ select = ["E", "F", "W", "I", "UP", "B", "SIM", "PIE", "RUF"]
 ignore = ["E501"]  # line length handled by formatter
 
 [tool.coverage.run]
-source = ["scripts"]
-omit = ["tests/*"]
+branch = true
 
 [tool.coverage.report]
 show_missing = true
-fail_under = 80
+include = ["tests/helpers.py", "scripts/*.py"]

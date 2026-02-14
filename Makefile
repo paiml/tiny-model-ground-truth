@@ -1,4 +1,4 @@
-.PHONY: oracle pull convert check check-canary check-token check-drift check-roundtrip check-ppl check-inspect check-validate check-tensors check-lint check-selftest check-diff check-tree check-oracle-id check-hex check-debug check-bench check-qa check-list check-rosetta-diff check-parity-gpu test test-canary test-token test-drift test-roundtrip test-ppl test-inspect test-validate test-tensors test-selftest ticket ci recheck clean oracle-quantize oracle-finetune oracle-merge oracle-convert oracle-prune oracle-ops lint typecheck
+.PHONY: oracle pull convert check check-canary check-token check-drift check-roundtrip check-ppl check-inspect check-validate check-tensors check-lint check-selftest check-diff check-tree check-oracle-id check-hex check-debug check-bench check-qa check-list check-rosetta-diff check-parity-gpu test test-parity test-canary test-token test-drift test-roundtrip test-ppl test-inspect test-validate test-tensors test-selftest coverage ticket ci recheck clean oracle-quantize oracle-finetune oracle-merge oracle-convert oracle-prune oracle-ops lint typecheck
 
 oracle:
 	uv run python scripts/gen_oracle.py --all
@@ -84,9 +84,17 @@ check-rosetta-diff:
 check-parity-gpu:
 	uv run python scripts/parity_check.py --check parity-gpu
 
-# pytest-based parity tests (same checks, pytest runner)
+# pytest unit + property tests (no apr/model deps)
 test:
-	uv run --extra test pytest tests/ -v
+	uv run --extra test pytest tests/ -v -m "not requires_apr"
+
+# pytest parity tests (requires apr CLI + converted models)
+test-parity:
+	uv run --extra test pytest tests/ -v -m "requires_apr"
+
+# coverage report (unit + property tests)
+coverage:
+	uv run --extra dev pytest tests/ -m "not requires_apr" --cov --cov-report=term-missing --cov-report=html -v
 
 test-canary:
 	uv run --extra test pytest tests/test_canary.py -v

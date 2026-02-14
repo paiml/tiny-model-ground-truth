@@ -17,10 +17,9 @@ from helpers import (
 
 DRIFT_MARGIN = 1
 
-skip_no_apr = pytest.importorskip("shutil").which("apr") is not None
 pytestmark = [
+    pytest.mark.requires_apr,
     pytest.mark.quant_drift,
-    pytest.mark.skipif(not skip_no_apr, reason="apr CLI not in PATH"),
 ]
 
 

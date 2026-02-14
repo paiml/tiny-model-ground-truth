@@ -10,7 +10,6 @@ from unittest.mock import MagicMock, patch
 
 from helpers import apr_cmd_json, apr_eval_json, apr_run_json, load_oracle, run_apr
 
-
 # ── load_oracle ──────────────────────────────────────────────────
 
 
@@ -47,21 +46,21 @@ def test_run_apr_success():
 
 def test_run_apr_nonzero_exit():
     with patch("helpers.subprocess.run", return_value=_mock_proc("", "bad", 1)):
-        stdout, stderr, code = run_apr(["run", "model.apr"])
+        _stdout, stderr, code = run_apr(["run", "model.apr"])
     assert code == 1
     assert stderr == "bad"
 
 
 def test_run_apr_timeout():
     with patch("helpers.subprocess.run", side_effect=subprocess.TimeoutExpired(cmd="apr", timeout=55)):
-        stdout, stderr, code = run_apr(["run", "model.apr"])
+        _stdout, stderr, code = run_apr(["run", "model.apr"])
     assert code == 1
     assert "TIMEOUT" in stderr
 
 
 def test_run_apr_not_found():
     with patch("helpers.subprocess.run", side_effect=FileNotFoundError):
-        stdout, stderr, code = run_apr(["run", "model.apr"])
+        _stdout, stderr, code = run_apr(["run", "model.apr"])
     assert code == 127
     assert "not found" in stderr
 

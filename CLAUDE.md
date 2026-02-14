@@ -85,7 +85,7 @@ token-identical greedy outputs (or bounded quantization drift).
 - All checks must pass before merge
 - Commit format: `feat|fix|test|docs: msg (Refs TMGT-XXX)`
 - `bashrs comply check` must score A+ (100/100)
-- `make test` must pass (138 tests, <2s)
+- `make test` must pass (330 tests, <25s)
 - `make coverage` must meet 95% fail_under per file
   - `tests/helpers.py`: 100%
   - `scripts/parity_check.py`: 98%

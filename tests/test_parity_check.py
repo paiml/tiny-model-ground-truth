@@ -125,21 +125,21 @@ def test_count_mismatches_length_diff():
 
 def test_run_apr_success():
     with _patch_run("output", "", 0):
-        out, err, code = run_apr(["inspect", "m.apr"])
+        out, _err, code = run_apr(["inspect", "m.apr"])
     assert out == "output"
     assert code == 0
 
 
 def test_run_apr_timeout():
     with _patch_run_side(subprocess.TimeoutExpired("apr", 120)):
-        out, err, code = run_apr(["run", "m.apr"])
+        _out, err, code = run_apr(["run", "m.apr"])
     assert code == 1
     assert "TIMEOUT" in err
 
 
 def test_run_apr_not_found():
     with _patch_run_side(FileNotFoundError):
-        out, err, code = run_apr(["run", "m.apr"])
+        _out, _err, code = run_apr(["run", "m.apr"])
     assert code == 127
 
 
@@ -168,7 +168,7 @@ def test_apr_run_json_bad_json():
 def test_apr_cmd_json_success():
     payload = {"key": "val"}
     with _patch_run(json.dumps(payload), "", 0):
-        data, err = apr_cmd_json(["inspect", "m.apr", "--json"])
+        data, _err = apr_cmd_json(["inspect", "m.apr", "--json"])
     assert data == payload
 
 
@@ -181,7 +181,7 @@ def test_apr_cmd_json_failure():
 
 def test_apr_cmd_json_bad_json():
     with _patch_run("nope", "", 0):
-        data, err = apr_cmd_json(["validate", "m.apr"])
+        _data, err = apr_cmd_json(["validate", "m.apr"])
     assert "invalid JSON" in err
 
 

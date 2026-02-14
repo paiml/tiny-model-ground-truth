@@ -67,24 +67,27 @@ token-identical greedy outputs (or bounded quantization drift).
 
 | Check | Result | Notes |
 |-------|--------|-------|
+| list | 1/1 PASS | Cache listing works |
 | quant-drift | 12/12 PASS | Int8 ≤ Int4+1 holds |
 | roundtrip | 4/5 PASS | GPT-2 GGUF roundtrip broken |
 | tensors | 6/6 PASS | Correct tensor counts |
 | hex | 6/6 PASS | Non-zero tensor data |
 | rosetta-diff | 3/3 PASS | No layout mismatches |
+| tree | 6/6 PASS | Tensor counts correct |
+| debug | 4/4 PASS | Health=OK all models |
 | canary | 0/12 FAIL | Inference produces wrong tokens |
 | token-parity | 0/24 FAIL | 32/32 mismatches (all wrong) |
-| ppl | 0/6 FAIL | --json flag ignored / GPT-2 PPL=2.67e33 |
+| ppl | 0/6 FAIL | --json output includes ANSI escapes |
 | inspect | 0/6 FAIL | arch field empty in JSON |
-| validate | 0/6 FAIL | Output format changed |
-| lint | 0/6 FAIL | Exit 5 on warnings-only |
+| validate | 0/6 FAIL | 22-23 items not implemented |
+| lint | 0/6 FAIL | --json flag ignored |
 | selftest | 0/6 FAIL | GH-187 embedding issue |
 | bench | 0/6 FAIL | 0.0 tok/s throughput |
-| debug/tree/list | 0/13 FAIL | --json flag ignored |
+| diff | 0/2 FAIL | Structural diffs in qwen2/gpt2 |
 | oracle-id | 0/6 FAIL | arch field empty |
-| qa | 3/6 PARTIAL | GPT-2 + smollm int8 fail |
+| qa | 1/6 FAIL | GPT-2 + others fail |
 | parity-gpu | 2 skip, 1 FAIL | GPT-2 tensor not found |
-| **Total** | **32/135** | **103 failures** |
+| **Total** | **42/135** | **93 failures** |
 
 ## Quality Standards
 

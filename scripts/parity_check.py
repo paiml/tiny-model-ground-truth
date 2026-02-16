@@ -375,22 +375,30 @@ def check_inspect(slug: str, model_info: dict) -> list[Result]:
     return results
 
 
+PASS_STATUSES = ("PASS", "pass", "ok")
+
+
+def _check_list_failures(checks: list) -> list:
+    return [c for c in checks if c.get("status") not in PASS_STATUSES]
+
+
+def _check_dict_failures(checks: dict) -> dict:
+    return {k: v for k, v in checks.items() if v not in PASS_STATUSES}
+
+
 def _evaluate_validation_checks(r: Result, data: dict) -> None:
     """Evaluate apr validate output in its various response shapes."""
     checks = data.get("checks", data.get("results"))
     if isinstance(checks, list):
-        failures = [c for c in checks if c.get("status") not in ("PASS", "pass", "ok")]
+        failures = _check_list_failures(checks)
         r.fail(f"{len(failures)} validation failures: {failures}") if failures else r.pass_(f"{len(checks)} checks passed")
         return
     if isinstance(checks, dict):
-        failures = {k: v for k, v in checks.items() if v not in ("PASS", "pass", "ok")}
+        failures = _check_dict_failures(checks)
         r.fail(f"validation failures: {failures}") if failures else r.pass_(f"{len(checks)} checks passed")
         return
     score = data.get("score", data.get("total"))
-    if score is not None:
-        r.pass_(f"score={score}")
-    else:
-        r.fail(f"unexpected validate output format: {list(data.keys())}")
+    r.pass_(f"score={score}") if score is not None else r.fail(f"unexpected validate output format: {list(data.keys())}")
 
 
 def check_validate(slug: str, model_info: dict) -> list[Result]:
@@ -407,9 +415,17 @@ def check_validate(slug: str, model_info: dict) -> list[Result]:
     return results
 
 
+def _extract_tensors(data) -> list:
+    """Extract tensor list from apr tensors JSON response."""
+    if isinstance(data, list):
+        return data
+    if isinstance(data, dict):
+        return data.get("tensors", [])
+    return []
+
+
 def check_tensors(slug: str, model_info: dict) -> list[Result]:
     """`apr tensors` returns correct tensor count and dtypes."""
-    MODEL_METADATA[slug]
     results = []
     for quant in ["int4", "int8"]:
         r = Result(f"tensors/{slug}/{quant}")
@@ -417,14 +433,20 @@ def check_tensors(slug: str, model_info: dict) -> list[Result]:
         if err:
             r.fail(err)
         else:
-            tensors = data.get("tensors", data if isinstance(data, list) else [])
-            if not tensors:
-                r.fail(f"no tensors returned, keys: {list(data.keys()) if isinstance(data, dict) else 'list'}")
-            else:
-                count = len(tensors)
-                r.pass_(f"{count} tensors found")
+            tensors = _extract_tensors(data)
+            r.pass_(f"{len(tensors)} tensors found") if tensors else r.fail("no tensors returned")
         results.append(r)
     return results
+
+
+def _evaluate_lint(r: Result, data: dict) -> None:
+    """Evaluate apr lint output for critical violations."""
+    violations = _extract_list_field(data, "violations", "issues")
+    if violations is None:
+        r.pass_("lint passed")
+        return
+    critical = [v for v in violations if v.get("severity") in ("critical", "error")]
+    r.fail(f"{len(critical)} critical violations: {critical[:3]}") if critical else r.pass_(f"{len(violations)} warnings, 0 critical")
 
 
 def check_lint(slug: str, model_info: dict) -> list[Result]:
@@ -436,15 +458,7 @@ def check_lint(slug: str, model_info: dict) -> list[Result]:
         if err:
             r.fail(err)
         else:
-            violations = data.get("violations", data.get("issues", []))
-            if isinstance(violations, list):
-                critical = [v for v in violations if v.get("severity") in ("critical", "error")]
-                if critical:
-                    r.fail(f"{len(critical)} critical violations: {critical[:3]}")
-                else:
-                    r.pass_(f"{len(violations)} warnings, 0 critical")
-            else:
-                r.pass_("lint passed")
+            _evaluate_lint(r, data)
         results.append(r)
     return results
 
@@ -479,30 +493,29 @@ def check_self_test(slug: str, model_info: dict) -> list[Result]:
     return results
 
 
+def _is_expected_diff(d: dict) -> bool:
+    """Check if a diff entry is an expected dtype/size/data difference."""
+    expected = ("dtype", "size", "data")
+    return d.get("type") in expected or d.get("kind") in expected
+
+
 def check_diff(slug: str, model_info: dict) -> list[Result]:
     """`apr diff int8 int4` shows dtype-only differences, not structural."""
-    results = []
     r = Result(f"diff/{slug}")
-    data, err = apr_cmd_json(
-        ["diff", model_info["int8"], model_info["int4"], "--json"]
-    )
+    data, err = apr_cmd_json(["diff", model_info["int8"], model_info["int4"], "--json"])
     if err:
         r.fail(err)
+        return [r]
+    diffs = _extract_list_field(data, "differences", "diffs")
+    if diffs is None:
+        r.pass_(f"diff completed, keys: {list(data.keys())}")
+        return [r]
+    structural = [d for d in diffs if not _is_expected_diff(d)]
+    if structural:
+        r.fail(f"{len(structural)} structural diffs (not just dtype)", str(structural[:3]))
     else:
-        diffs = data.get("differences", data.get("diffs", []))
-        if isinstance(diffs, list):
-            structural = [
-                d for d in diffs
-                if d.get("type") not in ("dtype", "size", "data") and d.get("kind") not in ("dtype", "size", "data")
-            ]
-            if structural:
-                r.fail(f"{len(structural)} structural diffs (not just dtype)", str(structural[:3]))
-            else:
-                r.pass_(f"{len(diffs)} differences (dtype/size only)")
-        else:
-            r.pass_(f"diff completed, keys: {list(data.keys())}")
-    results.append(r)
-    return results
+        r.pass_(f"{len(diffs)} differences (dtype/size only)")
+    return [r]
 
 
 def _evaluate_tree(r: Result, data: dict, expected_layers: int) -> None:

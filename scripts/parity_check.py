@@ -139,6 +139,43 @@ def count_mismatches(a: list[int], b: list[int]) -> int:
     return m + abs(len(a) - len(b))
 
 
+def _extract_list_field(data: dict, *keys: str) -> list | None:
+    """Extract a list-valued field from a JSON response, trying multiple keys."""
+    for k in keys:
+        val = data.get(k)
+        if isinstance(val, list):
+            return val
+    return None
+
+
+def _count_passed_in_list(items: list, pass_values=("PASS", "pass", "ok")) -> tuple[int, int]:
+    """Count passed/total in a list of check dicts with 'status' field."""
+    passed = sum(1 for s in items if s.get("status") in pass_values)
+    return passed, len(items)
+
+
+def _check_per_quant(slug, model_info, check_name, check_fn):
+    """Run a check function for both int4 and int8 quants, return results."""
+    results = []
+    for quant in ["int4", "int8"]:
+        r = Result(f"{check_name}/{slug}/{quant}")
+        data, err = apr_cmd_json([*check_fn["args"](model_info[quant])])
+        if err:
+            r.fail(err)
+        else:
+            check_fn["evaluate"](r, data, slug, quant)
+        results.append(r)
+    return results
+
+
+def _print_results(results: list) -> None:
+    """Print a list of Result objects with colored pass/fail icons."""
+    for r in results:
+        icon = "\033[32m✓\033[0m" if r.passed else "\033[31m✗\033[0m"
+        detail = r.details if r.passed else r.error
+        print(f"  {icon} {r.name}: {detail}")
+
+
 def check_canary(slug: str, model_info: dict) -> list[Result]:
     """Int8 text must exactly match oracle."""
     results = []
@@ -307,6 +344,22 @@ def check_perplexity(slug: str, model_info: dict) -> list[Result]:
     return results
 
 
+def _evaluate_inspect(r: Result, data: dict, meta: dict) -> None:
+    """Evaluate apr inspect output against expected architecture metadata."""
+    mismatches = []
+    got_arch = data.get("architecture", "").lower()
+    if meta["architecture"] not in got_arch:
+        mismatches.append(f"arch: expected {meta['architecture']}, got {got_arch}")
+    for field, key in [("layers", "num_layers"), ("heads", "num_heads"), ("hidden_dim", "hidden_size"), ("vocab_size", "vocab_size")]:
+        got = data.get(key)
+        if got is not None and got != meta[field]:
+            mismatches.append(f"{key}: expected {meta[field]}, got {got}")
+    if mismatches:
+        r.fail("; ".join(mismatches))
+    else:
+        r.pass_(f"arch={got_arch}, layers={data.get('num_layers')}")
+
+
 def check_inspect(slug: str, model_info: dict) -> list[Result]:
     """Metadata from `apr inspect` matches expected architecture params."""
     meta = MODEL_METADATA[slug]
@@ -317,25 +370,27 @@ def check_inspect(slug: str, model_info: dict) -> list[Result]:
         if err:
             r.fail(err)
         else:
-            mismatches = []
-            got_arch = data.get("architecture", "").lower()
-            if meta["architecture"] not in got_arch:
-                mismatches.append(f"arch: expected {meta['architecture']}, got {got_arch}")
-            for field, key in [
-                ("layers", "num_layers"),
-                ("heads", "num_heads"),
-                ("hidden_dim", "hidden_size"),
-                ("vocab_size", "vocab_size"),
-            ]:
-                got = data.get(key)
-                if got is not None and got != meta[field]:
-                    mismatches.append(f"{key}: expected {meta[field]}, got {got}")
-            if mismatches:
-                r.fail("; ".join(mismatches))
-            else:
-                r.pass_(f"arch={got_arch}, layers={data.get('num_layers')}")
+            _evaluate_inspect(r, data, meta)
         results.append(r)
     return results
+
+
+def _evaluate_validation_checks(r: Result, data: dict) -> None:
+    """Evaluate apr validate output in its various response shapes."""
+    checks = data.get("checks", data.get("results"))
+    if isinstance(checks, list):
+        failures = [c for c in checks if c.get("status") not in ("PASS", "pass", "ok")]
+        r.fail(f"{len(failures)} validation failures: {failures}") if failures else r.pass_(f"{len(checks)} checks passed")
+        return
+    if isinstance(checks, dict):
+        failures = {k: v for k, v in checks.items() if v not in ("PASS", "pass", "ok")}
+        r.fail(f"validation failures: {failures}") if failures else r.pass_(f"{len(checks)} checks passed")
+        return
+    score = data.get("score", data.get("total"))
+    if score is not None:
+        r.pass_(f"score={score}")
+    else:
+        r.fail(f"unexpected validate output format: {list(data.keys())}")
 
 
 def check_validate(slug: str, model_info: dict) -> list[Result]:
@@ -347,25 +402,7 @@ def check_validate(slug: str, model_info: dict) -> list[Result]:
         if err:
             r.fail(err)
         else:
-            checks = data.get("checks", data.get("results", []))
-            if isinstance(checks, list):
-                failures = [c for c in checks if c.get("status") not in ("PASS", "pass", "ok")]
-                if failures:
-                    r.fail(f"{len(failures)} validation failures: {failures}")
-                else:
-                    r.pass_(f"{len(checks)} checks passed")
-            elif isinstance(checks, dict):
-                failures = {k: v for k, v in checks.items() if v not in ("PASS", "pass", "ok")}
-                if failures:
-                    r.fail(f"validation failures: {failures}")
-                else:
-                    r.pass_(f"{len(checks)} checks passed")
-            else:
-                score = data.get("score", data.get("total"))
-                if score is not None:
-                    r.pass_(f"score={score}")
-                else:
-                    r.fail(f"unexpected validate output format: {list(data.keys())}")
+            _evaluate_validation_checks(r, data)
         results.append(r)
     return results
 
@@ -412,6 +449,22 @@ def check_lint(slug: str, model_info: dict) -> list[Result]:
     return results
 
 
+def _evaluate_selftest_stages(r: Result, data: dict) -> None:
+    """Evaluate apr check output — require ≥7 passed stages."""
+    stages = _extract_list_field(data, "stages", "checks", "results")
+    if stages is not None:
+        passed, total = _count_passed_in_list(stages)
+        if passed >= 7:
+            r.pass_(f"{passed}/{total} stages passed")
+            return
+        failed_names = [s.get("name", "?") for s in stages if s.get("status") not in ("PASS", "pass", "ok")]
+        r.fail(f"only {passed}/{total} stages passed", f"failed: {failed_names}")
+        return
+    passed = data.get("passed", 0)
+    total = data.get("total", 0)
+    r.pass_(f"{passed}/{total} stages passed") if passed >= 7 else r.fail(f"only {passed}/{total} stages passed")
+
+
 def check_self_test(slug: str, model_info: dict) -> list[Result]:
     """`apr check` passes ≥7/10 pipeline stages."""
     results = []
@@ -421,25 +474,7 @@ def check_self_test(slug: str, model_info: dict) -> list[Result]:
         if err:
             r.fail(err)
         else:
-            stages = data.get("stages", data.get("checks", data.get("results", [])))
-            if isinstance(stages, list):
-                passed = sum(1 for s in stages if s.get("status") in ("PASS", "pass", "ok"))
-                total = len(stages)
-                if passed >= 7:
-                    r.pass_(f"{passed}/{total} stages passed")
-                else:
-                    failed_names = [
-                        s.get("name", "?") for s in stages
-                        if s.get("status") not in ("PASS", "pass", "ok")
-                    ]
-                    r.fail(f"only {passed}/{total} stages passed", f"failed: {failed_names}")
-            else:
-                passed = data.get("passed", 0)
-                total = data.get("total", 0)
-                if passed >= 7:
-                    r.pass_(f"{passed}/{total} stages passed")
-                else:
-                    r.fail(f"only {passed}/{total} stages passed")
+            _evaluate_selftest_stages(r, data)
         results.append(r)
     return results
 
@@ -470,6 +505,21 @@ def check_diff(slug: str, model_info: dict) -> list[Result]:
     return results
 
 
+def _evaluate_tree(r: Result, data: dict, expected_layers: int) -> None:
+    """Evaluate apr tree output against expected layer count."""
+    layers = data.get("num_layers", data.get("layers"))
+    tensors = data.get("total_tensors", data.get("tensor_count"))
+    if layers is not None and layers != expected_layers:
+        r.fail(f"layer count mismatch: expected {expected_layers}, got {layers}")
+        return
+    details = []
+    if layers is not None:
+        details.append(f"layers={layers}")
+    if tensors is not None:
+        details.append(f"tensors={tensors}")
+    r.pass_(", ".join(details) if details else "tree completed")
+
+
 def check_tree(slug: str, model_info: dict) -> list[Result]:
     """`apr tree` shows correct layer and tensor count."""
     meta = MODEL_METADATA[slug]
@@ -480,18 +530,7 @@ def check_tree(slug: str, model_info: dict) -> list[Result]:
         if err:
             r.fail(err)
         else:
-            layers = data.get("num_layers", data.get("layers"))
-            tensors = data.get("total_tensors", data.get("tensor_count"))
-            details = []
-            if layers is not None:
-                details.append(f"layers={layers}")
-                if layers != meta["layers"]:
-                    r.fail(f"layer count mismatch: expected {meta['layers']}, got {layers}")
-                    results.append(r)
-                    continue
-            if tensors is not None:
-                details.append(f"tensors={tensors}")
-            r.pass_(", ".join(details) if details else "tree completed")
+            _evaluate_tree(r, data, meta["layers"])
         results.append(r)
     return results
 
@@ -519,6 +558,22 @@ def check_oracle_id(slug: str, model_info: dict) -> list[Result]:
     return results
 
 
+def _evaluate_hex_stats(r: Result, data) -> None:
+    """Evaluate apr hex stats output."""
+    if isinstance(data, list):
+        r.pass_(f"hex completed ({len(data)} entries)")
+        return
+    std = data.get("std")
+    if std is None:
+        std = (data.get("statistics") or {}).get("std")
+    if std is not None and std > 0:
+        r.pass_(f"std={std:.6f} (non-zero data)")
+    elif std is not None:
+        r.fail("std=0 (constant/zero tensor data)")
+    else:
+        r.pass_(f"hex completed (keys: {list(data.keys())[:5]})")
+
+
 def check_hex_quality(slug: str, model_info: dict) -> list[Result]:
     """`apr hex` reports non-zero tensor statistics."""
     results = []
@@ -530,27 +585,28 @@ def check_hex_quality(slug: str, model_info: dict) -> list[Result]:
             "--stats", "--json",
         ])
         if err:
-            # Try without specific tensor (some models use different naming)
             data, err2 = apr_cmd_json(["hex", model_info[quant], "--stats", "--json"])
             if err2:
                 r.fail(err)
-            elif isinstance(data, dict):
-                r.pass_(f"hex stats available (keys: {list(data.keys())[:5]})")
             else:
-                r.pass_(f"hex stats available ({len(data)} entries)")
+                _evaluate_hex_stats(r, data)
         else:
-            if isinstance(data, list):
-                r.pass_(f"hex completed ({len(data)} entries)")
-            else:
-                std = data.get("std", data.get("statistics", {}).get("std"))
-                if std is not None and std > 0:
-                    r.pass_(f"std={std:.6f} (non-zero data)")
-                elif std is not None:
-                    r.fail("std=0 (constant/zero tensor data)")
-                else:
-                    r.pass_(f"hex completed (keys: {list(data.keys())[:5]})")
+            _evaluate_hex_stats(r, data)
         results.append(r)
     return results
+
+
+def _evaluate_health(r: Result, data: dict) -> None:
+    """Evaluate apr debug health output."""
+    health = data.get("health", data.get("status", ""))
+    if health.lower() in ("ok", "healthy", "pass"):
+        r.pass_(f"health={health}")
+    elif health:
+        r.fail(f"health={health}")
+    elif data.get("error"):
+        r.fail(f"error: {data['error']}")
+    else:
+        r.pass_(f"debug completed (keys: {list(data.keys())[:5]})")
 
 
 def check_debug(slug: str, model_info: dict) -> list[Result]:
@@ -562,17 +618,7 @@ def check_debug(slug: str, model_info: dict) -> list[Result]:
         if err:
             r.fail(err)
         else:
-            health = data.get("health", data.get("status", ""))
-            if health.lower() in ("ok", "healthy", "pass"):
-                r.pass_(f"health={health}")
-            elif health:
-                r.fail(f"health={health}")
-            else:
-                # No explicit health field — check for error indicators
-                if data.get("error"):
-                    r.fail(f"error: {data['error']}")
-                else:
-                    r.pass_(f"debug completed (keys: {list(data.keys())[:5]})")
+            _evaluate_health(r, data)
         results.append(r)
     return results
 
@@ -600,6 +646,22 @@ def check_bench(slug: str, model_info: dict) -> list[Result]:
     return results
 
 
+def _evaluate_qa_gates(r: Result, data: dict) -> None:
+    """Evaluate apr qa output — require ≥3 gates, no critical failures."""
+    gates = _extract_list_field(data, "gates", "checks", "results")
+    if gates is not None:
+        critical = [g for g in gates if g.get("status") in ("CRITICAL", "critical", "FAIL") and g.get("severity") == "critical"]
+        if len(gates) < 3:
+            r.fail(f"only {len(gates)} gates executed (need ≥3)")
+        elif critical:
+            r.fail(f"{len(critical)} critical failures", str(critical[:3]))
+        else:
+            r.pass_(f"{len(gates)} gates executed, 0 critical")
+        return
+    executed = data.get("gates_executed", data.get("total", 0))
+    r.pass_(f"{executed} gates executed") if executed >= 3 else r.fail(f"only {executed} gates executed (need ≥3)")
+
+
 def check_qa(slug: str, model_info: dict) -> list[Result]:
     """`apr qa` executes ≥3 gates without critical failure."""
     results = []
@@ -612,26 +674,7 @@ def check_qa(slug: str, model_info: dict) -> list[Result]:
         if err:
             r.fail(err)
         else:
-            gates = data.get("gates", data.get("checks", data.get("results", [])))
-            if isinstance(gates, list):
-                executed = len(gates)
-                critical = [
-                    g for g in gates
-                    if g.get("status") in ("CRITICAL", "critical", "FAIL")
-                    and g.get("severity") == "critical"
-                ]
-                if executed >= 3 and not critical:
-                    r.pass_(f"{executed} gates executed, 0 critical")
-                elif executed < 3:
-                    r.fail(f"only {executed} gates executed (need ≥3)")
-                else:
-                    r.fail(f"{len(critical)} critical failures", str(critical[:3]))
-            else:
-                executed = data.get("gates_executed", data.get("total", 0))
-                if executed >= 3:
-                    r.pass_(f"{executed} gates executed")
-                else:
-                    r.fail(f"only {executed} gates executed (need ≥3)")
+            _evaluate_qa_gates(r, data)
         results.append(r)
     return results
 
@@ -673,18 +716,15 @@ def check_parity_gpu(slug: str, model_info: dict) -> list[Result]:
         return [r]
     data, err = apr_cmd_json(["parity", gguf, "--json", "--assert"])
     if err:
-        if "no GPU" in err.lower() or "cuda" in err.lower():
-            r.pass_(f"skipped (no GPU): {err[:80]}")
-        else:
-            r.fail(err)
+        r.pass_(f"skipped (no GPU): {err[:80]}") if ("no gpu" in err.lower() or "cuda" in err.lower()) else r.fail(err)
+        return [r]
+    match = data.get("match", data.get("parity"))
+    if match in (True, "pass", "PASS"):
+        r.pass_("GPU/CPU parity confirmed")
+    elif match in (False, "fail", "FAIL"):
+        r.fail("GPU/CPU parity mismatch", str(data))
     else:
-        match = data.get("match", data.get("parity"))
-        if match in (True, "pass", "PASS"):
-            r.pass_("GPU/CPU parity confirmed")
-        elif match in (False, "fail", "FAIL"):
-            r.fail("GPU/CPU parity mismatch", str(data))
-        else:
-            r.pass_(f"parity completed (keys: {list(data.keys())[:5]})")
+        r.pass_(f"parity completed (keys: {list(data.keys())[:5]})")
     return [r]
 
 
@@ -727,108 +767,92 @@ def format_ticket(failures: list[Result]) -> str:
     return "\n".join(lines)
 
 
+def _build_model_checks(slug: str, info: dict) -> dict:
+    """Build the check dispatch table for a single model."""
+    return {
+        "canary": lambda s=slug, i=info: check_canary(s, i),
+        "token": lambda s=slug, i=info: check_token_parity(s, i),
+        "drift": lambda s=slug, i=info: check_quant_drift(s, i),
+        "roundtrip": lambda s=slug, i=info: check_roundtrip(s, i),
+        "ppl": lambda s=slug, i=info: check_perplexity(s, i),
+        "inspect": lambda s=slug, i=info: check_inspect(s, i),
+        "validate": lambda s=slug, i=info: check_validate(s, i),
+        "tensors": lambda s=slug, i=info: check_tensors(s, i),
+        "lint": lambda s=slug, i=info: check_lint(s, i),
+        "selftest": lambda s=slug, i=info: check_self_test(s, i),
+        "diff": lambda s=slug, i=info: check_diff(s, i),
+        "tree": lambda s=slug, i=info: check_tree(s, i),
+        "oracle-id": lambda s=slug, i=info: check_oracle_id(s, i),
+        "hex": lambda s=slug, i=info: check_hex_quality(s, i),
+        "debug": lambda s=slug, i=info: check_debug(s, i),
+        "bench": lambda s=slug, i=info: check_bench(s, i),
+        "qa": lambda s=slug, i=info: check_qa(s, i),
+        "rosetta-diff": lambda s=slug, i=info: check_rosetta_diff(s, i),
+        "parity-gpu": lambda s=slug, i=info: check_parity_gpu(s, i),
+    }
+
+
+def _run_selected_checks(checks: dict, check_name: str) -> list[Result]:
+    """Run all or a single check from the dispatch table."""
+    if check_name == "all":
+        run_checks = checks
+    elif check_name == "list":
+        return []
+    else:
+        run_checks = {check_name: checks[check_name]}
+    results = []
+    for _name, fn in run_checks.items():
+        batch = fn()
+        results.extend(batch)
+        _print_results(batch)
+    return results
+
+
+def _print_section(title: str) -> None:
+    print(f"\n{'='*60}")
+    print(f"  {title}")
+    print(f"{'='*60}")
+
+
 def main():
     parser = argparse.ArgumentParser(description="Real model parity checker")
     parser.add_argument("--model", choices=list(MODELS.keys()), help="Single model")
-    parser.add_argument(
-        "--ticket", action="store_true", help="Print GitHub issue for failures"
-    )
+    parser.add_argument("--ticket", action="store_true", help="Print GitHub issue for failures")
     all_checks = [
         "canary", "token", "drift", "roundtrip", "ppl",
         "inspect", "validate", "tensors", "lint", "selftest",
         "diff", "tree", "oracle-id", "hex", "debug", "bench", "qa",
         "list", "rosetta-diff", "parity-gpu", "all",
     ]
-    parser.add_argument(
-        "--check",
-        choices=all_checks,
-        default="all",
-        help="Which check to run",
-    )
+    parser.add_argument("--check", choices=all_checks, default="all", help="Which check to run")
     args = parser.parse_args()
 
-    models_to_test = (
-        {args.model: MODELS[args.model]} if args.model else MODELS
-    )
-
+    models_to_test = {args.model: MODELS[args.model]} if args.model else MODELS
     all_results: list[Result] = []
 
-    # Global checks (not per-model)
     if args.check in ("all", "list"):
-        print(f"\n{'='*60}")
-        print("  global checks")
-        print(f"{'='*60}")
+        _print_section("global checks")
         results = check_list_global()
         all_results.extend(results)
-        for r in results:
-            icon = "\033[32m✓\033[0m" if r.passed else "\033[31m✗\033[0m"
-            detail = r.details if r.passed else r.error
-            print(f"  {icon} {r.name}: {detail}")
+        _print_results(results)
 
     for slug, info in models_to_test.items():
-        # Verify model files exist
         missing = [k for k in ["int4", "int8"] if not Path(info[k]).exists()]
         if missing:
             for k in missing:
                 print(f"SKIP {slug}: {info[k]} not found (run make convert)")
             continue
+        _print_section(slug)
+        checks = _build_model_checks(slug, info)
+        all_results.extend(_run_selected_checks(checks, args.check))
 
-        print(f"\n{'='*60}")
-        print(f"  {slug}")
-        print(f"{'='*60}")
-
-        checks = {
-            "canary": lambda s=slug, i=info: check_canary(s, i),
-            "token": lambda s=slug, i=info: check_token_parity(s, i),
-            "drift": lambda s=slug, i=info: check_quant_drift(s, i),
-            "roundtrip": lambda s=slug, i=info: check_roundtrip(s, i),
-            "ppl": lambda s=slug, i=info: check_perplexity(s, i),
-            "inspect": lambda s=slug, i=info: check_inspect(s, i),
-            "validate": lambda s=slug, i=info: check_validate(s, i),
-            "tensors": lambda s=slug, i=info: check_tensors(s, i),
-            "lint": lambda s=slug, i=info: check_lint(s, i),
-            "selftest": lambda s=slug, i=info: check_self_test(s, i),
-            "diff": lambda s=slug, i=info: check_diff(s, i),
-            "tree": lambda s=slug, i=info: check_tree(s, i),
-            "oracle-id": lambda s=slug, i=info: check_oracle_id(s, i),
-            "hex": lambda s=slug, i=info: check_hex_quality(s, i),
-            "debug": lambda s=slug, i=info: check_debug(s, i),
-            "bench": lambda s=slug, i=info: check_bench(s, i),
-            "qa": lambda s=slug, i=info: check_qa(s, i),
-            "rosetta-diff": lambda s=slug, i=info: check_rosetta_diff(s, i),
-            "parity-gpu": lambda s=slug, i=info: check_parity_gpu(s, i),
-        }
-
-        if args.check == "all":
-            run_checks = checks
-        elif args.check == "list":
-            run_checks = {}  # already handled as global check
-        else:
-            run_checks = {args.check: checks[args.check]}
-
-        for _check_name, check_fn in run_checks.items():
-            results = check_fn()
-            all_results.extend(results)
-            for r in results:
-                icon = "\033[32m✓\033[0m" if r.passed else "\033[31m✗\033[0m"
-                detail = r.details if r.passed else r.error
-                print(f"  {icon} {r.name}: {detail}")
-
-    # Summary
     passed = sum(1 for r in all_results if r.passed)
-    failed = sum(1 for r in all_results if not r.passed)
-    total = len(all_results)
+    failed = len(all_results) - passed
+    _print_section(f"Results: {passed}/{len(all_results)} passed, {failed} failed")
 
-    print(f"\n{'='*60}")
-    print(f"  Results: {passed}/{total} passed, {failed} failed")
-    print(f"{'='*60}")
-
-    failures = [r for r in all_results if not r.passed]
-    if failures and args.ticket:
-        print(f"\n{'='*60}")
-        print("  TICKET (copy to aprender issue)")
-        print(f"{'='*60}")
-        print(format_ticket(failures))
+    if failed and args.ticket:
+        _print_section("TICKET (copy to aprender issue)")
+        print(format_ticket([r for r in all_results if not r.passed]))
 
     sys.exit(1 if failed > 0 else 0)
 

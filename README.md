@@ -22,22 +22,15 @@ Twelve issues filed against aprender/realizar — see [Filed Issues](#filed-issu
 
 See [CLAIMS.md](CLAIMS.md) for pre-registered falsifiable claims and design rationale (ADRs).
 
-## Quick Start
+## Installation
 
-```bash
-make pull      # Download 3 tiny models (~1.5GB)
-make convert   # Import to APR (Int4/Int8) + export GGUF
-make check     # Run all parity checks (actually invokes apr inference)
-make ticket    # Generate GitHub issue markdown for failures
-```
-
-### Requirements
+### Prerequisites
 
 - **Hardware**: Any x86_64 or ARM64 machine with ≥4GB RAM. CPU-only (no GPU required).
 - **Software**: `apr` (v0.2.16+), `uv` (v0.5+), Python 3.11+
 - **Disk**: ~5GB for models directory
 
-### Environment Reproducibility
+### Setup
 
 ```bash
 # Docker (fully reproducible)
@@ -46,6 +39,31 @@ docker build -t tmgt . && docker run tmgt
 # Native (requires Rust toolchain)
 bash ci/setup.sh   # Install apr
 uv sync            # Install Python deps (locked via uv.lock)
+```
+
+## Usage
+
+```bash
+make pull      # Download 3 tiny models (~1.5GB)
+make convert   # Import to APR (Int4/Int8) + export GGUF
+make check     # Run all parity checks (actually invokes apr inference)
+make ticket    # Generate GitHub issue markdown for failures
+```
+
+Run a single check suite or model:
+
+```bash
+uv run python scripts/parity_check.py --check canary
+uv run python scripts/parity_check.py --model smollm-135m
+uv run python scripts/parity_check.py --check token --model qwen2-0.5b
+```
+
+Run tests:
+
+```bash
+make test          # Unit + property tests (no apr/model deps)
+make test-parity   # Integration parity tests (requires apr + models)
+make coverage      # Coverage report
 ```
 
 ## Parity Matrix (Current Results)
@@ -249,6 +267,14 @@ gen_oracle.py ──► oracle/*.json ◄── parity_check.py
 - **Determinism**: All inference uses greedy decoding. No random
   seeds needed ([ADR-001](CLAIMS.md#adr-001-greedy-decoding-only)).
 - **Versioning**: Oracle JSON includes `transformers_version` and `torch_version` for provenance.
+
+## Contributing
+
+1. All work happens on `master` — no feature branches.
+2. Commit format: `feat|fix|test|docs: message (Refs TMGT-XXX)`.
+3. `make test` must pass (330+ tests, <25s) before committing.
+4. `pmat quality-gate` must report 0 violations.
+5. File bugs against [aprender](https://github.com/paiml/aprender/issues) when parity checks fail.
 
 ## License
 

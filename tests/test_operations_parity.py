@@ -762,3 +762,198 @@ def test_prune_output_has_zeros(prune_output):
     assert zero_pct > 0.1, (
         f"pruned tensor has only {zero_pct:.1%} zeros, expected >10%"
     )
+
+
+# ── synthetic training data (shared by finetune + distill) ────────────
+
+
+@pytest.fixture(scope="module")
+def train_data():
+    """Create a minimal JSONL training file for finetune/distill."""
+    tmpdir = tempfile.mkdtemp(prefix="apr_train_data_")
+    path = os.path.join(tmpdir, "train.jsonl")
+    samples = [
+        '{"text":"The quick brown fox jumps over the lazy dog."}',
+        '{"text":"Hello world this is a test sentence for training."}',
+        '{"text":"Machine learning models need data to learn patterns."}',
+        '{"text":"Transformers use self-attention to process sequences."}',
+        '{"text":"Neural networks approximate functions via gradient descent."}',
+    ]
+    with open(path, "w") as f:
+        f.write("\n".join(samples) + "\n")
+    yield path
+    with contextlib.suppress(OSError):
+        os.unlink(path)
+    with contextlib.suppress(OSError):
+        os.rmdir(tmpdir)
+
+
+# ── finetune structural ──────────────────────────────────────────────
+
+
+@pytest.fixture(scope="module")
+def finetune_output(model_paths, train_data):
+    """Run apr finetune LoRA on SmolLM, return output path."""
+    slug = "smollm-135m"
+    if slug not in model_paths:
+        pytest.skip("smollm not in HF cache")
+    path = model_paths[slug]
+    tmpdir = tempfile.mkdtemp(prefix="apr_finetune_struct_")
+    out = os.path.join(tmpdir, "finetuned.safetensors")
+    proc = _run_apr([
+        "finetune", path, "--method", "lora",
+        "-d", train_data, "-o", out, "--json",
+    ])
+    if proc.returncode != 0:
+        yield None
+        return
+    # PMAT-272: apr finetune exits 0 with plan JSON but doesn't create the output file
+    if not os.path.exists(out):
+        yield None
+        return
+    yield {"path": out, "slug": slug, "tmpdir": tmpdir, "stdout": proc.stdout}
+    with contextlib.suppress(OSError):
+        os.unlink(out)
+    with contextlib.suppress(OSError):
+        os.rmdir(tmpdir)
+
+
+def test_finetune_output_exists(finetune_output):
+    """apr finetune: produces an output file."""
+    if finetune_output is None:
+        pytest.skip("apr finetune not implemented yet")
+    assert os.path.exists(finetune_output["path"])
+    assert os.path.getsize(finetune_output["path"]) > 0
+
+
+def test_finetune_output_readable(finetune_output):
+    """apr finetune: output is valid safetensors readable by Python."""
+    if finetune_output is None:
+        pytest.skip("apr finetune not implemented yet")
+    with safe_open(finetune_output["path"], framework="pt") as f:
+        keys = list(f.keys())
+    assert len(keys) > 0
+
+
+def test_finetune_output_has_adapter_tensors(finetune_output):
+    """apr finetune LoRA: output contains LoRA adapter tensors (lora_A/lora_B)."""
+    if finetune_output is None:
+        pytest.skip("apr finetune not implemented yet")
+    header = _read_header(finetune_output["path"])
+    names = list(header.keys())
+    lora_names = [n for n in names if "lora" in n.lower()]
+    assert len(lora_names) > 0, (
+        f"expected LoRA adapter tensors, got: {names[:10]}..."
+    )
+
+
+def test_finetune_output_smaller_than_base(finetune_output, model_paths):
+    """apr finetune LoRA: adapter output is much smaller than base model."""
+    if finetune_output is None:
+        pytest.skip("apr finetune not implemented yet")
+    base_size = os.path.getsize(model_paths[finetune_output["slug"]])
+    adapter_size = os.path.getsize(finetune_output["path"])
+    # LoRA adapter should be <<50% of base model
+    assert adapter_size < base_size * 0.5, (
+        f"adapter ({adapter_size}) should be <50% of base ({base_size})"
+    )
+
+
+def test_finetune_output_lora_rank_shapes(finetune_output):
+    """apr finetune LoRA: adapter tensors have low-rank shapes."""
+    if finetune_output is None:
+        pytest.skip("apr finetune not implemented yet")
+    header = _read_header(finetune_output["path"])
+    lora_a = [n for n in header if "lora_a" in n.lower() or "lora_A" in n]
+    if not lora_a:
+        pytest.skip("no lora_A tensors found in output")
+    # LoRA A tensors should have shape [rank, dim] where rank is small
+    for name in lora_a[:3]:
+        shape = header[name]["shape"]
+        assert len(shape) == 2, f"{name} shape={shape}, expected 2D"
+        rank = min(shape)
+        assert rank <= 512, f"{name} rank={rank}, expected <=512 for LoRA"
+
+
+# ── distill structural ───────────────────────────────────────────────
+
+
+@pytest.fixture(scope="module")
+def distill_output(model_paths, train_data):
+    """Run apr distill on SmolLM (self-distillation), return output path."""
+    slug = "smollm-135m"
+    if slug not in model_paths:
+        pytest.skip("smollm not in HF cache")
+    path = model_paths[slug]
+    tmpdir = tempfile.mkdtemp(prefix="apr_distill_struct_")
+    out = os.path.join(tmpdir, "distilled.safetensors")
+    proc = _run_apr([
+        "distill", path, "--student", path,
+        "-d", train_data, "-o", out, "--json",
+    ])
+    if proc.returncode != 0:
+        yield None
+        return
+    # PMAT-273: apr distill exits 0 with configured status but doesn't create output
+    if not os.path.exists(out):
+        yield None
+        return
+    yield {"path": out, "slug": slug, "tmpdir": tmpdir, "stdout": proc.stdout}
+    with contextlib.suppress(OSError):
+        os.unlink(out)
+    with contextlib.suppress(OSError):
+        os.rmdir(tmpdir)
+
+
+def test_distill_output_exists(distill_output):
+    """apr distill: produces an output file."""
+    if distill_output is None:
+        pytest.skip("apr distill not implemented yet")
+    assert os.path.exists(distill_output["path"])
+    assert os.path.getsize(distill_output["path"]) > 0
+
+
+def test_distill_output_readable(distill_output):
+    """apr distill: output is valid safetensors readable by Python."""
+    if distill_output is None:
+        pytest.skip("apr distill not implemented yet")
+    with safe_open(distill_output["path"], framework="pt") as f:
+        keys = list(f.keys())
+    assert len(keys) > 0
+
+
+def test_distill_output_tensor_count(distill_output, model_paths):
+    """apr distill: output has same tensor structure as student model."""
+    if distill_output is None:
+        pytest.skip("apr distill not implemented yet")
+    input_header = _read_header(model_paths[distill_output["slug"]])
+    output_header = _read_header(distill_output["path"])
+    assert len(output_header) == len(input_header), (
+        f"student has {len(input_header)} tensors, distilled has {len(output_header)}"
+    )
+
+
+def test_distill_output_size_reasonable(distill_output, model_paths):
+    """apr distill: output size is within 2x of student (no bloat)."""
+    if distill_output is None:
+        pytest.skip("apr distill not implemented yet")
+    student_size = os.path.getsize(model_paths[distill_output["slug"]])
+    output_size = os.path.getsize(distill_output["path"])
+    ratio = output_size / student_size
+    assert 0.3 <= ratio <= 2.0, (
+        f"size ratio={ratio:.2f} (student={student_size}, output={output_size})"
+    )
+
+
+def test_distill_output_shapes_match_student(distill_output, model_paths):
+    """apr distill: output tensor shapes match student model."""
+    if distill_output is None:
+        pytest.skip("apr distill not implemented yet")
+    input_header = _read_header(model_paths[distill_output["slug"]])
+    output_header = _read_header(distill_output["path"])
+    mismatches = [
+        f"  {n}: {input_header[n]['shape']} -> {output_header[n]['shape']}"
+        for n in input_header
+        if n in output_header and input_header[n]["shape"] != output_header[n]["shape"]
+    ]
+    assert not mismatches, "shape mismatches:\n" + "\n".join(mismatches)

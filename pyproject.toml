@@ -64,6 +64,7 @@ markers = [
     "selftest: Claim 13 - pipeline self-test",
     "property_based: hypothesis property-based tests",
     "safetensors_parity: safetensors Python vs apr CLI parity",
+    "operations_parity: apr operations (quantize/finetune/merge/prune/distill/convert) vs oracles",
 ]
 timeout = 60
 

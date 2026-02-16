@@ -1,4 +1,4 @@
-.PHONY: oracle oracle-gpu oracle-gpu-kernels pull convert check check-canary check-token check-drift check-roundtrip check-ppl check-inspect check-validate check-tensors check-lint check-selftest check-diff check-tree check-oracle-id check-hex check-debug check-bench check-qa check-list check-rosetta-diff check-parity-gpu test test-parity test-safetensors test-canary test-token test-drift test-roundtrip test-ppl test-inspect test-validate test-tensors test-selftest coverage ticket ci recheck clean oracle-quantize oracle-finetune oracle-merge oracle-convert oracle-prune oracle-ops lint typecheck
+.PHONY: oracle oracle-gpu oracle-gpu-kernels pull convert check check-canary check-token check-drift check-roundtrip check-ppl check-inspect check-validate check-tensors check-lint check-selftest check-diff check-tree check-oracle-id check-hex check-debug check-bench check-qa check-list check-rosetta-diff check-parity-gpu test test-parity test-safetensors test-operations test-canary test-token test-drift test-roundtrip test-ppl test-inspect test-validate test-tensors test-selftest coverage ticket ci recheck clean oracle-quantize oracle-finetune oracle-merge oracle-convert oracle-prune oracle-ops lint typecheck
 
 oracle:
 	uv run python scripts/gen_oracle.py --all
@@ -134,6 +134,10 @@ test-selftest:
 # safetensors parity: Python safetensors vs apr CLI (fast, metadata-only)
 test-safetensors:
 	uv run --extra test pytest tests/test_safetensors_parity.py -v
+
+# operations parity: apr quantize/finetune/merge/prune/distill/convert vs oracles
+test-operations:
+	uv run --extra test pytest tests/test_operations_parity.py -v
 
 # Generate GitHub issue markdown for failures
 ticket:

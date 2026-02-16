@@ -63,6 +63,7 @@ markers = [
     "tensors: Claim 11 - tensor structure",
     "selftest: Claim 13 - pipeline self-test",
     "property_based: hypothesis property-based tests",
+    "safetensors_parity: safetensors Python vs apr CLI parity",
 ]
 timeout = 60
 

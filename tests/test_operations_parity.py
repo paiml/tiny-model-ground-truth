@@ -218,7 +218,6 @@ def test_plan_json_valid(slug, op, model_paths, plan_data):
 
 
 @pytest.mark.parametrize("slug", MODEL_PARAMS)
-@pytest.mark.xfail(reason="PMAT-268: apr merge --json outputs ANSI instead of JSON")
 def test_merge_json_output(slug, model_paths):
     """apr merge --json: should produce valid JSON."""
     if slug not in model_paths:
@@ -239,7 +238,6 @@ def test_merge_json_output(slug, model_paths):
 
 
 @pytest.mark.parametrize("slug", MODEL_PARAMS)
-@pytest.mark.xfail(reason="PMAT-269: apr convert --json outputs ANSI instead of JSON")
 def test_convert_json_output(slug, model_paths):
     """apr convert --json: should produce valid JSON."""
     if slug not in model_paths:
@@ -696,7 +694,7 @@ def test_quantize_output_exists(quantize_output):
     assert os.path.getsize(quantize_output["path"]) > 0
 
 
-@pytest.mark.xfail(reason="PMAT-274: apr quantize int4 produces no size reduction")
+@pytest.mark.xfail(reason="PMAT-274: apr quantize int4 on safetensors writes full precision")
 def test_quantize_output_smaller(quantize_output, model_paths):
     """apr quantize int4: output is significantly smaller than input."""
     if quantize_output is None:

@@ -720,6 +720,23 @@ def check_rosetta_diff(slug: str, model_info: dict) -> list[Result]:
     return [r]
 
 
+def _is_gpu_skip_error(err: str) -> bool:
+    """Check if error indicates GPU unavailability (not a real failure)."""
+    lower = err.lower()
+    return "no gpu" in lower or "cuda" in lower
+
+
+def _evaluate_parity_match(r: Result, data: dict) -> None:
+    """Evaluate the match/parity field from apr parity output."""
+    match = data.get("match", data.get("parity"))
+    if match in (True, "pass", "PASS"):
+        r.pass_("GPU/CPU parity confirmed")
+    elif match in (False, "fail", "FAIL"):
+        r.fail("GPU/CPU parity mismatch", str(data))
+    else:
+        r.pass_(f"parity completed (keys: {list(data.keys())[:5]})")
+
+
 def check_parity_gpu(slug: str, model_info: dict) -> list[Result]:
     """`apr parity` checks GPU/CPU produce identical results (GGUF only)."""
     r = Result(f"parity-gpu/{slug}")
@@ -729,15 +746,12 @@ def check_parity_gpu(slug: str, model_info: dict) -> list[Result]:
         return [r]
     data, err = apr_cmd_json(["parity", gguf, "--json", "--assert"])
     if err:
-        r.pass_(f"skipped (no GPU): {err[:80]}") if ("no gpu" in err.lower() or "cuda" in err.lower()) else r.fail(err)
+        if _is_gpu_skip_error(err):
+            r.pass_(f"skipped (no GPU): {err[:80]}")
+        else:
+            r.fail(err)
         return [r]
-    match = data.get("match", data.get("parity"))
-    if match in (True, "pass", "PASS"):
-        r.pass_("GPU/CPU parity confirmed")
-    elif match in (False, "fail", "FAIL"):
-        r.fail("GPU/CPU parity mismatch", str(data))
-    else:
-        r.pass_(f"parity completed (keys: {list(data.keys())[:5]})")
+    _evaluate_parity_match(r, data)
     return [r]
 
 
@@ -821,6 +835,14 @@ def _run_selected_checks(checks: dict, check_name: str) -> list[Result]:
     return results
 
 
+def _check_model_files(slug: str, info: dict) -> bool:
+    """Check that required model files exist, print skip messages if not."""
+    missing = [k for k in ["int4", "int8"] if not Path(info[k]).exists()]
+    for k in missing:
+        print(f"SKIP {slug}: {info[k]} not found (run make convert)")
+    return not missing
+
+
 def _print_section(title: str) -> None:
     print(f"\n{'='*60}")
     print(f"  {title}")
@@ -850,10 +872,7 @@ def main():
         _print_results(results)
 
     for slug, info in models_to_test.items():
-        missing = [k for k in ["int4", "int8"] if not Path(info[k]).exists()]
-        if missing:
-            for k in missing:
-                print(f"SKIP {slug}: {info[k]} not found (run make convert)")
+        if not _check_model_files(slug, info):
             continue
         _print_section(slug)
         checks = _build_model_checks(slug, info)

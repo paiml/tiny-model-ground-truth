@@ -1253,25 +1253,32 @@ def _load_shard(spath: str) -> dict:
     }
 
 
+def _build_shard_entry(info: dict) -> dict | None:
+    """Build shard data entry for a single model, or None if shards not in cache."""
+    shard_paths = _resolve_shard_paths(info)
+    if shard_paths is None:
+        return None
+    shard_results = [_load_shard(sp) for sp in shard_paths]
+    py_all_keys = [k for s in shard_results for k in s["py_keys"]]
+    py_metadata = {}
+    for s in shard_results:
+        py_metadata.update(s["py_meta"])
+    return {
+        "shards": shard_results,
+        "py_total_tensors": len(py_all_keys),
+        "py_all_keys": py_all_keys,
+        "py_metadata": py_metadata,
+    }
+
+
 @pytest.fixture(scope="module")
 def shard_data():
     """Load sharded model data from HF cache."""
     data = {}
     for name, info in SHARDED_MODELS.items():
-        shard_paths = _resolve_shard_paths(info)
-        if shard_paths is None:
-            continue
-        shard_results = [_load_shard(sp) for sp in shard_paths]
-        py_all_keys = [k for s in shard_results for k in s["py_keys"]]
-        py_metadata = {}
-        for s in shard_results:
-            py_metadata.update(s["py_meta"])
-        data[name] = {
-            "shards": shard_results,
-            "py_total_tensors": len(py_all_keys),
-            "py_all_keys": py_all_keys,
-            "py_metadata": py_metadata,
-        }
+        entry = _build_shard_entry(info)
+        if entry is not None:
+            data[name] = entry
     if not data:
         pytest.skip("No sharded models in HF cache")
     return data

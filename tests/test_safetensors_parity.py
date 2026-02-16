@@ -27,6 +27,7 @@ Fast: header reads + small tensor spot-checks, no inference.
 Sample size: n = 3 (one per model in roster) + 1 sharded.
 """
 
+import contextlib
 import json
 import math
 import os
@@ -36,10 +37,9 @@ import tempfile
 
 import pytest
 import torch
-from huggingface_hub import hf_hub_download
-from safetensors import safe_open
-
 from helpers import MODEL_METADATA, MODEL_PARAMS
+from huggingface_hub import hf_hub_download
+from safetensors import SafetensorError, safe_open
 
 pytestmark = [
     pytest.mark.requires_apr,
@@ -67,6 +67,19 @@ def _read_header_size(path: str) -> int:
     """Read the 8-byte header length from a safetensors file."""
     with open(path, "rb") as f:
         return int.from_bytes(f.read(8), "little")
+
+
+def _compare_tensor_headers(orig: dict, rt: dict) -> list[str]:
+    """Compare shape and dtype between two safetensors headers, return mismatch strings."""
+    mismatches = []
+    for name in orig:
+        if name not in rt:
+            continue
+        if orig[name]["shape"] != rt[name]["shape"]:
+            mismatches.append(f"  {name} shape: {orig[name]['shape']} -> {rt[name]['shape']}")
+        if orig[name]["dtype"] != rt[name]["dtype"]:
+            mismatches.append(f"  {name} dtype: {orig[name]['dtype']} -> {rt[name]['dtype']}")
+    return mismatches
 
 
 def _run_apr(args: list[str]) -> subprocess.CompletedProcess:
@@ -404,7 +417,7 @@ def test_hex_header_length(slug, parity_data):
         pytest.skip(f"{slug} not in HF cache")
     d = parity_data[slug]
     m = re.search(r"header_length:\s*(\d+)\s*bytes", d["hex_header_out"])
-    assert m, f"could not parse header_length from apr hex --header"
+    assert m, "could not parse header_length from apr hex --header"
     apr_header_len = int(m.group(1))
     assert apr_header_len == d["header_size"], (
         f"header_length: apr={apr_header_len}, binary={d['header_size']}"
@@ -613,24 +626,14 @@ def roundtrip_data(parity_data):
     for slug, d in parity_data.items():
         out_path = os.path.join(tmpdir, f"{slug}-roundtrip.safetensors")
         proc = _run_apr(["export", d["path"], "--format", "safetensors", "-o", out_path])
-        if proc.returncode != 0:
-            continue
-        rt_header = _read_header(out_path)
-        data[slug] = {
-            "out_path": out_path,
-            "rt_header": rt_header,
-        }
+        if proc.returncode == 0:
+            data[slug] = {"out_path": out_path, "rt_header": _read_header(out_path)}
     yield data
-    # cleanup
-    for slug, d in data.items():
-        try:
+    for d in data.values():
+        with contextlib.suppress(OSError):
             os.unlink(d["out_path"])
-        except OSError:
-            pass
-    try:
+    with contextlib.suppress(OSError):
         os.rmdir(tmpdir)
-    except OSError:
-        pass
 
 
 @pytest.mark.parametrize("slug", MODEL_PARAMS)
@@ -660,16 +663,8 @@ def test_roundtrip_shapes_dtypes(slug, parity_data, roundtrip_data):
         pytest.skip(f"{slug} roundtrip not available")
     orig = parity_data[slug]["header"]
     rt = roundtrip_data[slug]["rt_header"]
-    has_bf16 = any(m["dtype"] == "BF16" for m in orig.values())
-    mismatches = []
-    for name in orig:
-        if name not in rt:
-            continue
-        if orig[name]["shape"] != rt[name]["shape"]:
-            mismatches.append(f"  {name} shape: {orig[name]['shape']} -> {rt[name]['shape']}")
-        if orig[name]["dtype"] != rt[name]["dtype"]:
-            mismatches.append(f"  {name} dtype: {orig[name]['dtype']} -> {rt[name]['dtype']}")
-    if has_bf16 and mismatches:
+    mismatches = _compare_tensor_headers(orig, rt)
+    if any(m["dtype"] == "BF16" for m in orig.values()) and mismatches:
         pytest.xfail("PMAT-260: apr export safetensors widens BF16 to F32")
     assert not mismatches, "roundtrip changed:\n" + "\n".join(mismatches)
 
@@ -715,17 +710,21 @@ def pipe_data(parity_data):
         path = d["path"]
 
         # Test 1: apr tensors reading from stdin via `-`
+        with open(path, "rb") as f:
+            stdin_input = f.read()
         stdin_dash = subprocess.run(
             ["apr", "tensors", "-", "--json"],
-            input=open(path, "rb").read(),
+            input=stdin_input,
             capture_output=True,
             timeout=10,
         )
 
         # Test 2: apr tensors reading from /dev/stdin
+        with open(path, "rb") as f:
+            stdin_input2 = f.read()
         stdin_dev = subprocess.run(
             ["apr", "tensors", "/dev/stdin", "--json"],
-            input=open(path, "rb").read(),
+            input=stdin_input2,
             capture_output=True,
             timeout=10,
         )
@@ -828,7 +827,7 @@ def test_pipe_roundtrip(slug, parity_data, pipe_data):
         pytest.skip(f"{slug} not available")
     proc = pipe_data[slug]["stdout_dash"]
     if proc.returncode != 0:
-        pytest.fail(f"apr export -o - failed, can't test roundtrip")
+        pytest.fail("apr export -o - failed, can't test roundtrip")
     raw = proc.stdout if isinstance(proc.stdout, bytes) else proc.stdout.encode()
     # Parse as safetensors in Python
     from safetensors.torch import load as st_load
@@ -927,9 +926,8 @@ def corruption_data(parity_data):
 
     # Variant 1: truncated (100 bytes)
     trunc_path = os.path.join(tmpdir, "truncated.safetensors")
-    with open(path, "rb") as f:
-        with open(trunc_path, "wb") as out:
-            out.write(f.read(100))
+    with open(path, "rb") as f, open(trunc_path, "wb") as out:
+        out.write(f.read(100))
 
     # Variant 2: zero-length
     empty_path = os.path.join(tmpdir, "empty.safetensors")
@@ -971,15 +969,11 @@ def corruption_data(parity_data):
     data["variants"] = results
     yield data
     # cleanup
-    for name, vpath in variants.items():
-        try:
+    for _name, vpath in variants.items():
+        with contextlib.suppress(OSError):
             os.unlink(vpath)
-        except OSError:
-            pass
-    try:
+    with contextlib.suppress(OSError):
         os.rmdir(tmpdir)
-    except OSError:
-        pass
 
 
 # partial_data has a valid header but truncated tensor data.
@@ -1051,9 +1045,8 @@ def test_corruption_no_panic(variant, corruption_data):
 def test_corruption_python_also_rejects(variant, corruption_data):
     """Python safetensors also rejects corrupted files (sanity check)."""
     path = corruption_data["variants"][variant]["path"]
-    with pytest.raises(Exception):
-        with safe_open(path, framework="pt") as f:
-            list(f.keys())
+    with pytest.raises((SafetensorError, ValueError, RuntimeError, OSError)), safe_open(path, framework="pt") as f:
+        list(f.keys())
 
 
 # ── cross-format diff ─────────────────────────────────────────────────────
@@ -1084,10 +1077,8 @@ def trace_data(parity_data):
     for slug, d in parity_data.items():
         proc = _run_apr(["trace", d["path"], "--json"])
         if proc.returncode == 0:
-            try:
+            with contextlib.suppress(json.JSONDecodeError):
                 data[slug] = json.loads(proc.stdout)
-            except json.JSONDecodeError:
-                pass
     return data
 
 
@@ -1108,12 +1099,12 @@ def test_trace_layer_count(slug, parity_data, trace_data):
     layers = trace_data[slug].get("layers", [])
     expected_layers = MODEL_METADATA[slug]["layers"]
     # trace usually has: embedding + N transformer blocks (+ possibly output)
-    block_layers = [l for l in layers if "block" in l.get("name", "").lower()
-                    or "layer" in l.get("name", "").lower()
-                    or l.get("index") is not None]
+    block_layers = [ly for ly in layers if "block" in ly.get("name", "").lower()
+                    or "layer" in ly.get("name", "").lower()
+                    or ly.get("index") is not None]
     assert len(block_layers) >= expected_layers, (
         f"expected >= {expected_layers} transformer blocks, got {len(block_layers)}: "
-        f"{[l['name'] for l in block_layers]}"
+        f"{[ly['name'] for ly in block_layers]}"
     )
 
 
@@ -1127,10 +1118,8 @@ def oracle_data(parity_data):
     for slug, d in parity_data.items():
         proc = _run_apr(["oracle", d["path"], "--json"])
         if proc.returncode == 0:
-            try:
+            with contextlib.suppress(json.JSONDecodeError):
                 data[slug] = json.loads(proc.stdout)
-            except json.JSONDecodeError:
-                pass
     return data
 
 
@@ -1237,51 +1226,52 @@ def _resolve_shard(hf_id: str, filename: str) -> str | None:
         return None
 
 
+def _resolve_shard_paths(info: dict) -> list[str] | None:
+    """Resolve all shard file paths for a sharded model, or None if any missing."""
+    paths = []
+    for shard_file in info["shards"]:
+        path = _resolve_shard(info["hf_id"], shard_file)
+        if path is None:
+            return None
+        paths.append(path)
+    return paths
+
+
+def _load_shard(spath: str) -> dict:
+    """Load all data (header, apr commands, Python keys) for a single shard."""
+    with safe_open(spath, framework="pt") as f:
+        py_keys = list(f.keys())
+        py_meta = f.metadata() or {}
+    return {
+        "path": spath,
+        "header": _read_header(spath),
+        "apr_tensors": _apr_json(["tensors", spath, "--json"]),
+        "apr_inspect": _apr_json(["inspect", spath, "--json"]),
+        "apr_validate": _apr_json(["validate", spath, "--json"]),
+        "py_keys": py_keys,
+        "py_meta": py_meta,
+    }
+
+
 @pytest.fixture(scope="module")
 def shard_data():
     """Load sharded model data from HF cache."""
     data = {}
     for name, info in SHARDED_MODELS.items():
-        shard_paths = []
-        for shard_file in info["shards"]:
-            path = _resolve_shard(info["hf_id"], shard_file)
-            if path is None:
-                break
-            shard_paths.append(path)
-        if len(shard_paths) != len(info["shards"]):
+        shard_paths = _resolve_shard_paths(info)
+        if shard_paths is None:
             continue
-
-        shard_results = []
-        py_total_tensors = 0
-        py_all_keys = []
+        shard_results = [_load_shard(sp) for sp in shard_paths]
+        py_all_keys = [k for s in shard_results for k in s["py_keys"]]
         py_metadata = {}
-        for spath in shard_paths:
-            header = _read_header(spath)
-            apr_tensors = _apr_json(["tensors", spath, "--json"])
-            apr_inspect = _apr_json(["inspect", spath, "--json"])
-            apr_validate = _apr_json(["validate", spath, "--json"])
-            with safe_open(spath, framework="pt") as f:
-                py_keys = list(f.keys())
-                py_meta = f.metadata() or {}
-            py_total_tensors += len(py_keys)
-            py_all_keys.extend(py_keys)
-            py_metadata.update(py_meta)
-            shard_results.append({
-                "path": spath,
-                "header": header,
-                "apr_tensors": apr_tensors,
-                "apr_inspect": apr_inspect,
-                "apr_validate": apr_validate,
-                "py_keys": py_keys,
-            })
-
+        for s in shard_results:
+            py_metadata.update(s["py_meta"])
         data[name] = {
             "shards": shard_results,
-            "py_total_tensors": py_total_tensors,
+            "py_total_tensors": len(py_all_keys),
             "py_all_keys": py_all_keys,
             "py_metadata": py_metadata,
         }
-
     if not data:
         pytest.skip("No sharded models in HF cache")
     return data

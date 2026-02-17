@@ -855,7 +855,6 @@ def test_slice_partial_load(slug, parity_data):
 
 
 @pytest.mark.parametrize("slug", MODEL_PARAMS)
-@pytest.mark.xfail(reason="apr has no tensor slicing — only full tensor load via hex --tensor")
 def test_slice_apr_equivalent(slug, parity_data):
     """apr should support partial tensor reads (like safetensors get_slice)."""
     if slug not in parity_data:
@@ -982,12 +981,8 @@ def test_corruption_validate_rejects(variant, corruption_data):
     )
 
 
-@pytest.mark.xfail(reason="PMAT-264: apr validates header-only, doesn't check tensor data offsets vs file size")
 def test_corruption_partial_data_detected(corruption_data):
     """apr validate: partial_data (valid header, truncated tensors) should be flagged.
-
-    Currently apr returns 0 tensors and format='rosetta' instead of detecting
-    the truncated safetensors file. At minimum it should identify the format.
     """
     result = corruption_data["variants"]["partial_data"]["validate"]
     if result.returncode != 0:

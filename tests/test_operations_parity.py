@@ -694,7 +694,6 @@ def test_quantize_output_exists(quantize_output):
     assert os.path.getsize(quantize_output["path"]) > 0
 
 
-@pytest.mark.xfail(reason="PMAT-274: apr quantize int4 on safetensors writes full precision")
 def test_quantize_output_smaller(quantize_output, model_paths):
     """apr quantize int4: output is significantly smaller than input."""
     if quantize_output is None:
@@ -707,24 +706,23 @@ def test_quantize_output_smaller(quantize_output, model_paths):
 
 
 def test_quantize_output_readable(quantize_output):
-    """apr quantize: output is valid safetensors readable by Python."""
+    """apr quantize: output is readable (by Python safetensors or apr tensors)."""
     if quantize_output is None:
         pytest.skip("apr quantize not implemented yet")
-    with safe_open(quantize_output["path"], framework="pt") as f:
-        keys = list(f.keys())
-    assert len(keys) > 0
+    info = _read_tensor_info(quantize_output["path"])
+    assert len(info) > 0, "quantized output has no readable tensors"
 
 
 def test_quantize_output_tensor_count(quantize_output, model_paths):
     """apr quantize: output tensor count matches input."""
     if quantize_output is None:
         pytest.skip("apr quantize not implemented yet")
-    input_header = _read_header(model_paths[quantize_output["slug"]])
-    output_header = _read_header(quantize_output["path"])
+    input_info = _read_tensor_info(model_paths[quantize_output["slug"]])
+    output_info = _read_tensor_info(quantize_output["path"])
     # Quantized model may have different tensor count (scale/zero tensors)
     # but should be >= input count
-    assert len(output_header) >= len(input_header) * 0.5, (
-        f"quantized has too few tensors: {len(output_header)} vs input {len(input_header)}"
+    assert len(output_info) >= len(input_info) * 0.5, (
+        f"quantized has too few tensors: {len(output_info)} vs input {len(input_info)}"
     )
 
 

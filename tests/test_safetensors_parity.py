@@ -354,8 +354,7 @@ def test_hex_stats_min(slug, parity_data):
         pytest.skip(f"{slug} not in HF cache")
     d = parity_data[slug]
     apr_stats = _parse_hex_stats(d["hex_stdout"])
-    if apr_stats is None:
-        pytest.xfail(f"PMAT-259 regression: apr hex --stats drops {d['probe_dtype']} tensors")
+    assert apr_stats is not None, f"apr hex --stats returned no data for {d['probe_dtype']}"
     py_val = d["probe_pt"].min().item()
     assert abs(apr_stats["min"] - py_val) < 1e-4, (
         f"min: apr={apr_stats['min']}, torch={py_val}"
@@ -369,8 +368,7 @@ def test_hex_stats_max(slug, parity_data):
         pytest.skip(f"{slug} not in HF cache")
     d = parity_data[slug]
     apr_stats = _parse_hex_stats(d["hex_stdout"])
-    if apr_stats is None:
-        pytest.xfail(f"PMAT-259 regression: apr hex --stats drops {d['probe_dtype']} tensors")
+    assert apr_stats is not None, f"apr hex --stats returned no data for {d['probe_dtype']}"
     py_val = d["probe_pt"].max().item()
     assert abs(apr_stats["max"] - py_val) < 1e-4, (
         f"max: apr={apr_stats['max']}, torch={py_val}"
@@ -384,8 +382,7 @@ def test_hex_stats_mean(slug, parity_data):
         pytest.skip(f"{slug} not in HF cache")
     d = parity_data[slug]
     apr_stats = _parse_hex_stats(d["hex_stdout"])
-    if apr_stats is None:
-        pytest.xfail(f"PMAT-259 regression: apr hex --stats drops {d['probe_dtype']} tensors")
+    assert apr_stats is not None, f"apr hex --stats returned no data for {d['probe_dtype']}"
     py_val = d["probe_pt"].mean().item()
     assert abs(apr_stats["mean"] - py_val) < 1e-4, (
         f"mean: apr={apr_stats['mean']}, torch={py_val}"
@@ -399,8 +396,7 @@ def test_hex_stats_std(slug, parity_data):
         pytest.skip(f"{slug} not in HF cache")
     d = parity_data[slug]
     apr_stats = _parse_hex_stats(d["hex_stdout"])
-    if apr_stats is None:
-        pytest.xfail(f"PMAT-259 regression: apr hex --stats drops {d['probe_dtype']} tensors")
+    assert apr_stats is not None, f"apr hex --stats returned no data for {d['probe_dtype']}"
     py_val = d["probe_pt"].std(correction=0).item()
     assert abs(apr_stats["std"] - py_val) < 1e-4, (
         f"std: apr={apr_stats['std']}, torch={py_val}"
@@ -444,8 +440,7 @@ def test_hex_distribution_min_max(slug, parity_data):
         pytest.skip(f"{slug} not in HF cache")
     d = parity_data[slug]
     dist = _parse_hex_distribution(d["hex_dist_out"])
-    if "min" not in dist or "max" not in dist:
-        pytest.xfail(f"PMAT-259 regression: apr hex --distribution drops {d['probe_dtype']}")
+    assert "min" in dist and "max" in dist, f"apr hex --distribution missing min/max for {d['probe_dtype']}"
     py_min = d["probe_pt"].min().item()
     py_max = d["probe_pt"].max().item()
     assert abs(dist["min"] - py_min) < 1e-4, f"min: apr={dist['min']}, torch={py_min}"
@@ -459,8 +454,7 @@ def test_hex_distribution_kurtosis(slug, parity_data):
         pytest.skip(f"{slug} not in HF cache")
     d = parity_data[slug]
     dist = _parse_hex_distribution(d["hex_dist_out"])
-    if "kurtosis" not in dist:
-        pytest.xfail(f"PMAT-259 regression: apr hex --distribution drops {d['probe_dtype']}")
+    assert "kurtosis" in dist, f"apr hex --distribution missing kurtosis for {d['probe_dtype']}"
     assert math.isfinite(dist["kurtosis"]), f"kurtosis not finite: {dist['kurtosis']}"
 
 
@@ -471,8 +465,7 @@ def test_hex_distribution_entropy(slug, parity_data):
         pytest.skip(f"{slug} not in HF cache")
     d = parity_data[slug]
     dist = _parse_hex_distribution(d["hex_dist_out"])
-    if "entropy" not in dist:
-        pytest.xfail(f"PMAT-259 regression: apr hex --distribution drops {d['probe_dtype']}")
+    assert "entropy" in dist, f"apr hex --distribution missing entropy for {d['probe_dtype']}"
     assert dist["entropy"] > 0, f"entropy should be positive: {dist['entropy']}"
     assert math.isfinite(dist["entropy"]), f"entropy not finite: {dist['entropy']}"
 
@@ -664,8 +657,6 @@ def test_roundtrip_shapes_dtypes(slug, parity_data, roundtrip_data):
     orig = parity_data[slug]["header"]
     rt = roundtrip_data[slug]["rt_header"]
     mismatches = _compare_tensor_headers(orig, rt)
-    if any(m["dtype"] == "BF16" for m in orig.values()) and mismatches:
-        pytest.xfail("PMAT-260: apr export safetensors widens BF16 to F32")
     assert not mismatches, "roundtrip changed:\n" + "\n".join(mismatches)
 
 

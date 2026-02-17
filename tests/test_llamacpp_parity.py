@@ -1,7 +1,7 @@
 """Layer 4: llama.cpp cross-runtime parity tests.
 
 Layer 4a: llama.cpp native GGUF -> llama-completion inference -> compare vs oracle
-Layer 4b: apr-exported GGUF -> llama-completion load test (xfail, pre-tokenizer bug)
+Layer 4b: apr-exported GGUF -> llama-completion load test (GH-277 fixed in apr 0.2.18)
 Layer 4c: llama.cpp native GGUF -> both apr + llama-completion -> cross-runtime text match
 
 Falsification findings:
@@ -10,8 +10,7 @@ Falsification findings:
     cascade. Word-level overlap shows semantic similarity for some models (SmolLM)
     but total divergence for others (Qwen2 produces Chinese at Q4).
   - apr and llama-completion produce different text from the same GGUF with greedy
-    decoding, indicating different weight interpretation or sampling paths.
-  - apr-exported GGUFs use pre-tokenizer type 'llama' which llama.cpp rejects.
+    decoding, indicating different weight interpretation or sampling paths (GH-278).
 
 Sample size: n = 12 per test group (3 models x 4 prompts).
 """
@@ -115,12 +114,11 @@ def test_llamacpp_q4_text_vs_oracle(slug: str, prompt_name: str):
     )
 
 
-# ── Layer 4b: apr-exported GGUF in llama-completion (xfail) ──────
+# ── Layer 4b: apr-exported GGUF in llama-completion ──────────────
 
-@pytest.mark.xfail(reason="apr GGUF uses pre-tokenizer type 'llama' unsupported by llama.cpp")
 @pytest.mark.parametrize("slug", LLAMACPP_SLUGS)
 def test_apr_gguf_loads_in_llamacpp(slug: str):
-    """apr-exported GGUF loads in llama-completion (known incompatibility)."""
+    """apr-exported GGUF loads in llama-completion — GH-277 fixed in apr 0.2.18."""
     apr_gguf = MODELS[slug]["gguf"]
     _output, err = llamacpp_run(str(apr_gguf), "Hello", n_tokens=4)
     assert err is None, f"llama-completion rejected apr GGUF for {slug}: {err}"

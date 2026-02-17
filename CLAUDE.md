@@ -47,6 +47,10 @@ token-identical greedy outputs (or bounded quantization drift).
 | `make recheck` | After apr upgrades (clean + convert + check) |
 | `make oracle-gpu` | Generate BF16/FP16 GPU oracles (requires CUDA) |
 | `make oracle-gpu-kernels` | GPU oracles with HF custom kernels (requires CUDA + kernels) |
+| `make convert-llamacpp` | Convert HF models to llama.cpp-native GGUFs (F16/Q4_0/Q8_0) |
+| `make test-llamacpp` | llama.cpp cross-runtime parity tests (Layer 4) |
+| `make check-llamacpp` | llama-completion text vs oracle parity check |
+| `make check-cross-runtime` | Same GGUF in apr vs llama-completion text match |
 | `make clean` | Remove generated model files |
 
 ## Tolerance Standards
@@ -62,6 +66,10 @@ token-identical greedy outputs (or bounded quantization drift).
 | BF16 vs FP16 drift | ≤3/32 mismatches | Inter-precision bound |
 | Precision ladder | BF16 ≤ FP16 drift | Monotonic ordering |
 | Canary (text regression) | Exact text match | No inference regression |
+| llama.cpp Q8 vs oracle | ≤3/32 char mismatches | Cross-runtime Layer 4a |
+| llama.cpp Q4 vs oracle | ≤5/32 char mismatches | Cross-runtime Layer 4a |
+| Cross-runtime (apr vs llama.cpp) | Exact text match | Same GGUF, Layer 4c |
+| apr GGUF in llama.cpp | xfail | Pre-tokenizer bug, Layer 4b |
 
 ## Parity Status (2026-02-14, apr 0.2.16)
 

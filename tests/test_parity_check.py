@@ -16,12 +16,14 @@ from scripts.parity_check import (
     apr_run_json,
     check_bench,
     check_canary,
+    check_cross_runtime,
     check_debug,
     check_diff,
     check_hex_quality,
     check_inspect,
     check_lint,
     check_list_global,
+    check_llamacpp_text,
     check_oracle_id,
     check_parity_gpu,
     check_perplexity,
@@ -34,9 +36,11 @@ from scripts.parity_check import (
     check_token_parity,
     check_tree,
     check_validate,
+    count_char_mismatches,
     count_mismatches,
     format_ticket,
     get_apr_version,
+    llamacpp_run,
     load_oracle,
     main,
     run_apr,
@@ -1047,3 +1051,175 @@ def test_main_all_models_missing():
                 with pytest.raises(SystemExit) as exc:
                     main()
     assert exc.value.code == 0
+
+
+# ── llamacpp_run ────────────────────────────────────────────────
+
+
+def test_llamacpp_run_success():
+    with patch("scripts.parity_check.LLAMACPP_BIN", "/usr/bin/llama-completion"), _patch_run(
+        "  output text  ", "", 0
+    ):
+        data, err = llamacpp_run("model.gguf", "hello")
+    assert err is None
+    assert data == {"text": "output text"}
+
+
+def test_llamacpp_run_no_binary():
+    with patch("scripts.parity_check.LLAMACPP_BIN", ""):
+        data, err = llamacpp_run("model.gguf", "hello")
+    assert data is None
+    assert "not found" in err
+
+
+def test_llamacpp_run_nonzero_exit():
+    with patch("scripts.parity_check.LLAMACPP_BIN", "/usr/bin/llama-completion"), _patch_run(
+        "", "load failed", 1
+    ):
+        data, err = llamacpp_run("model.gguf", "hello")
+    assert data is None
+    assert "exit 1" in err
+
+
+def test_llamacpp_run_timeout():
+    with patch(
+        "scripts.parity_check.LLAMACPP_BIN", "/usr/bin/llama-completion"
+    ), _patch_run_side(subprocess.TimeoutExpired(cmd="llama-completion", timeout=120)):
+        data, err = llamacpp_run("model.gguf", "hello")
+    assert data is None
+    assert "TIMEOUT" in err
+
+
+def test_llamacpp_run_file_not_found():
+    with patch(
+        "scripts.parity_check.LLAMACPP_BIN", "/usr/bin/llama-completion"
+    ), _patch_run_side(FileNotFoundError):
+        data, err = llamacpp_run("model.gguf", "hello")
+    assert data is None
+    assert "not found" in err
+
+
+# ── count_char_mismatches ───────────────────────────────────────
+
+
+def test_count_char_mismatches_identical():
+    assert count_char_mismatches("hello", "hello") == 0
+
+
+def test_count_char_mismatches_all_different():
+    assert count_char_mismatches("abc", "xyz") == 3
+
+
+def test_count_char_mismatches_length_diff():
+    assert count_char_mismatches("hello", "he") == 3
+
+
+def test_count_char_mismatches_partial():
+    assert count_char_mismatches("abcd", "abxd") == 1
+
+
+# ── check_llamacpp_text ────────────────────────────────────────
+
+
+def _patch_llamacpp_run(text):
+    return patch("scripts.parity_check.llamacpp_run", return_value=({"text": text}, None))
+
+
+def _patch_llamacpp_run_err(err):
+    return patch("scripts.parity_check.llamacpp_run", return_value=(None, err))
+
+
+def test_check_llamacpp_text_pass():
+    """Q8 text within threshold → pass."""
+    with _patch_oracle(), _patch_llamacpp_run(" 2"), patch(
+        "scripts.parity_check.Path.exists", return_value=True
+    ):
+        results = check_llamacpp_text(SLUG, MODEL_INFO)
+    q8_results = [r for r in results if "q8_0" in r.name]
+    assert all(r.passed for r in q8_results)
+
+
+def test_check_llamacpp_text_fail():
+    """Q8 text exceeds threshold → fail."""
+    bad_text = "x" * 100  # totally different
+    with _patch_oracle(), _patch_llamacpp_run(bad_text), patch(
+        "scripts.parity_check.Path.exists", return_value=True
+    ):
+        results = check_llamacpp_text(SLUG, MODEL_INFO)
+    assert any(not r.passed for r in results)
+
+
+def test_check_llamacpp_text_error():
+    """llama-completion returns error → fail."""
+    with _patch_oracle(), _patch_llamacpp_run_err("model load failed"), patch(
+        "scripts.parity_check.Path.exists", return_value=True
+    ):
+        results = check_llamacpp_text(SLUG, MODEL_INFO)
+    assert all(not r.passed for r in results)
+
+
+def test_check_llamacpp_text_missing_gguf():
+    """No GGUF file → fail with helpful message."""
+    with patch("scripts.parity_check.Path.exists", return_value=False):
+        results = check_llamacpp_text(SLUG, MODEL_INFO)
+    assert all(not r.passed for r in results)
+    assert any("not found" in r.error for r in results)
+
+
+# ── check_cross_runtime ────────────────────────────────────────
+
+
+def test_check_cross_runtime_pass():
+    """Both runtimes produce same text → pass."""
+    apr_out = {"tokens": ORACLE_TOKENS, "text": "match text"}
+    with _patch_oracle(), patch(
+        "scripts.parity_check.apr_run_json", return_value=(apr_out, None)
+    ), patch(
+        "scripts.parity_check.llamacpp_run", return_value=({"text": "match text"}, None)
+    ), patch("scripts.parity_check.Path.exists", return_value=True):
+        results = check_cross_runtime(SLUG, MODEL_INFO)
+    assert all(r.passed for r in results)
+
+
+def test_check_cross_runtime_mismatch():
+    """Different text → fail."""
+    apr_out = {"tokens": ORACLE_TOKENS, "text": "apr text"}
+    with _patch_oracle(), patch(
+        "scripts.parity_check.apr_run_json", return_value=(apr_out, None)
+    ), patch(
+        "scripts.parity_check.llamacpp_run", return_value=({"text": "llama text"}, None)
+    ), patch("scripts.parity_check.Path.exists", return_value=True):
+        results = check_cross_runtime(SLUG, MODEL_INFO)
+    assert all(not r.passed for r in results)
+
+
+def test_check_cross_runtime_apr_error():
+    """apr fails → fail."""
+    with _patch_oracle(), patch(
+        "scripts.parity_check.apr_run_json", return_value=(None, "apr error")
+    ), patch(
+        "scripts.parity_check.llamacpp_run", return_value=({"text": "ok"}, None)
+    ), patch("scripts.parity_check.Path.exists", return_value=True):
+        results = check_cross_runtime(SLUG, MODEL_INFO)
+    assert all(not r.passed for r in results)
+
+
+def test_check_cross_runtime_llamacpp_error():
+    """llama-completion fails → fail."""
+    apr_out = {"tokens": ORACLE_TOKENS, "text": "ok"}
+    with _patch_oracle(), patch(
+        "scripts.parity_check.apr_run_json", return_value=(apr_out, None)
+    ), patch(
+        "scripts.parity_check.llamacpp_run", return_value=(None, "llama error")
+    ), patch("scripts.parity_check.Path.exists", return_value=True):
+        results = check_cross_runtime(SLUG, MODEL_INFO)
+    assert all(not r.passed for r in results)
+
+
+def test_check_cross_runtime_missing_gguf():
+    """No GGUF file → fail with helpful message."""
+    with patch("scripts.parity_check.Path.exists", return_value=False):
+        results = check_cross_runtime(SLUG, MODEL_INFO)
+    assert len(results) == 1
+    assert not results[0].passed
+    assert "not found" in results[0].error

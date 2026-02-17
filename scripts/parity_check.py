@@ -9,6 +9,7 @@ Usage:
 
 import argparse
 import json
+import shutil
 import subprocess
 import sys
 from datetime import date
@@ -16,6 +17,23 @@ from pathlib import Path
 
 ORACLE_DIR = Path("oracle")
 MODELS_DIR = Path("models")
+
+LLAMACPP_BIN = shutil.which("llama-completion") or ""
+
+LLAMACPP_MODELS = {
+    "smollm-135m": {
+        "q4_0": "models/smollm-135m-q4_0.gguf",
+        "q8_0": "models/smollm-135m-q8_0.gguf",
+    },
+    "qwen2-0.5b": {
+        "q4_0": "models/qwen2-0.5b-q4_0.gguf",
+        "q8_0": "models/qwen2-0.5b-q8_0.gguf",
+    },
+    "gpt2-124m": {
+        "q4_0": "models/gpt2-124m-q4_0.gguf",
+        "q8_0": "models/gpt2-124m-q8_0.gguf",
+    },
+}
 
 MODEL_METADATA = {
     "smollm-135m": {
@@ -137,6 +155,40 @@ def count_mismatches(a: list[int], b: list[int]) -> int:
     min_len = min(len(a), len(b))
     m = sum(1 for i in range(min_len) if a[i] != b[i])
     return m + abs(len(a) - len(b))
+
+
+def count_char_mismatches(a: str, b: str) -> int:
+    """Count character-level mismatches between two strings."""
+    min_len = min(len(a), len(b))
+    m = sum(1 for i in range(min_len) if a[i] != b[i])
+    return m + abs(len(a) - len(b))
+
+
+def llamacpp_run(gguf_path: str, prompt: str, n_tokens: int = 32) -> tuple[dict | None, str | None]:
+    """Run llama-completion greedy inference, return {"text": ...} or None on failure."""
+    cli = LLAMACPP_BIN
+    if not cli:
+        return None, "llama-completion not found in PATH"
+    try:
+        proc = subprocess.run(
+            [
+                cli, "-m", str(gguf_path),
+                "-p", prompt,
+                "-n", str(n_tokens),
+                "--temp", "0", "--top-k", "1",
+                "--no-display-prompt",
+                "-s", "42",
+            ],
+            capture_output=True, text=True, timeout=120,
+        )
+    except subprocess.TimeoutExpired:
+        return None, "TIMEOUT after 120s"
+    except FileNotFoundError:
+        return None, "llama-completion not found in PATH"
+    if proc.returncode != 0:
+        return None, f"llama-completion failed (exit {proc.returncode}): {proc.stderr.strip()[:300]}"
+    text = proc.stdout.strip()
+    return {"text": text}, None
 
 
 def _extract_list_field(data: dict, *keys: str) -> list | None:
@@ -755,6 +807,66 @@ def check_parity_gpu(slug: str, model_info: dict) -> list[Result]:
     return [r]
 
 
+def check_llamacpp_text(slug: str, model_info: dict) -> list[Result]:
+    """llama-cli text output vs oracle on native GGUF (Q8_0 and Q4_0)."""
+    results = []
+    llamacpp_info = LLAMACPP_MODELS.get(slug, {})
+    thresholds = {"q8_0": 3, "q4_0": 5}
+    for quant, threshold in thresholds.items():
+        gguf_path = llamacpp_info.get(quant)
+        if not gguf_path or not Path(gguf_path).exists():
+            r = Result(f"llamacpp-text/{slug}/{quant}")
+            r.fail(f"native GGUF not found: {gguf_path} (run make convert-llamacpp)")
+            results.append(r)
+            continue
+        for prompt_name in PROMPTS:
+            r = Result(f"llamacpp-text/{slug}/{quant}/{prompt_name}")
+            oracle = load_oracle(slug, prompt_name)
+            output, err = llamacpp_run(gguf_path, oracle["prompt"])
+            if err:
+                r.fail(err)
+            else:
+                m = count_char_mismatches(output["text"], oracle["text"])
+                if m <= threshold:
+                    r.pass_(f"{m}/{threshold} char mismatches")
+                else:
+                    r.fail(
+                        f"{m} char mismatches exceeds threshold {threshold}",
+                        f"oracle: {oracle['text']!r}\n  got:   {output['text']!r}",
+                    )
+            results.append(r)
+    return results
+
+
+def check_cross_runtime(slug: str, model_info: dict) -> list[Result]:
+    """Same native GGUF fed to both apr and llama-cli — text must match."""
+    results = []
+    llamacpp_info = LLAMACPP_MODELS.get(slug, {})
+    gguf_path = llamacpp_info.get("q8_0")
+    if not gguf_path or not Path(gguf_path).exists():
+        r = Result(f"cross-runtime/{slug}")
+        r.fail(f"native Q8_0 GGUF not found: {gguf_path} (run make convert-llamacpp)")
+        return [r]
+    for prompt_name in PROMPTS:
+        r = Result(f"cross-runtime/{slug}/{prompt_name}")
+        oracle = load_oracle(slug, prompt_name)
+        apr_out, apr_err = apr_run_json(gguf_path, oracle["prompt"])
+        llama_out, llama_err = llamacpp_run(gguf_path, oracle["prompt"])
+        if apr_err:
+            r.fail(f"apr: {apr_err}")
+        elif llama_err:
+            r.fail(f"llama-cli: {llama_err}")
+        elif apr_out.get("text") == llama_out["text"]:
+            r.pass_("exact text match")
+        else:
+            r.fail(
+                "cross-runtime text mismatch",
+                f"apr:       {apr_out.get('text')!r}\n  llama-cli: {llama_out['text']!r}",
+            )
+        results.append(r)
+    return results
+
+
 def get_apr_version() -> str:
     """Get apr CLI version string."""
     try:
@@ -816,6 +928,8 @@ def _build_model_checks(slug: str, info: dict) -> dict:
         "qa": lambda s=slug, i=info: check_qa(s, i),
         "rosetta-diff": lambda s=slug, i=info: check_rosetta_diff(s, i),
         "parity-gpu": lambda s=slug, i=info: check_parity_gpu(s, i),
+        "llamacpp-text": lambda s=slug, i=info: check_llamacpp_text(s, i),
+        "cross-runtime": lambda s=slug, i=info: check_cross_runtime(s, i),
     }
 
 
@@ -857,7 +971,8 @@ def main():
         "canary", "token", "drift", "roundtrip", "ppl",
         "inspect", "validate", "tensors", "lint", "selftest",
         "diff", "tree", "oracle-id", "hex", "debug", "bench", "qa",
-        "list", "rosetta-diff", "parity-gpu", "all",
+        "list", "rosetta-diff", "parity-gpu",
+        "llamacpp-text", "cross-runtime", "all",
     ]
     parser.add_argument("--check", choices=all_checks, default="all", help="Which check to run")
     args = parser.parse_args()

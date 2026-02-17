@@ -8,7 +8,15 @@ import json
 import subprocess
 from unittest.mock import MagicMock, patch
 
-from helpers import apr_cmd_json, apr_eval_json, apr_run_json, load_oracle, run_apr
+from helpers import (
+    apr_cmd_json,
+    apr_eval_json,
+    apr_run_json,
+    count_char_mismatches,
+    llamacpp_run,
+    load_oracle,
+    run_apr,
+)
 
 # ── load_oracle ──────────────────────────────────────────────────
 
@@ -168,3 +176,69 @@ def test_apr_cmd_json_invalid_json():
     assert data is None
     assert "invalid JSON" in err
     assert "inspect" in err
+
+
+# ── llamacpp_run ────────────────────────────────────────────────
+
+
+def test_llamacpp_run_success():
+    with patch("helpers.LLAMACPP_BIN", "/usr/bin/llama-completion"), patch(
+        "helpers.subprocess.run", return_value=_mock_proc("  hello world  ", "", 0)
+    ):
+        data, err = llamacpp_run("model.gguf", "hi")
+    assert err is None
+    assert data == {"text": "hello world"}
+
+
+def test_llamacpp_run_no_binary():
+    with patch("helpers.LLAMACPP_BIN", ""):
+        data, err = llamacpp_run("model.gguf", "hi")
+    assert data is None
+    assert "not found" in err
+
+
+def test_llamacpp_run_nonzero_exit():
+    with patch("helpers.LLAMACPP_BIN", "/usr/bin/llama-completion"), patch(
+        "helpers.subprocess.run", return_value=_mock_proc("", "model load failed", 1)
+    ):
+        data, err = llamacpp_run("model.gguf", "hi")
+    assert data is None
+    assert "exit 1" in err
+
+
+def test_llamacpp_run_timeout():
+    with patch("helpers.LLAMACPP_BIN", "/usr/bin/llama-completion"), patch(
+        "helpers.subprocess.run",
+        side_effect=subprocess.TimeoutExpired(cmd="llama-completion", timeout=120),
+    ):
+        data, err = llamacpp_run("model.gguf", "hi")
+    assert data is None
+    assert "TIMEOUT" in err
+
+
+def test_llamacpp_run_file_not_found():
+    with patch("helpers.LLAMACPP_BIN", "/usr/bin/llama-completion"), patch(
+        "helpers.subprocess.run", side_effect=FileNotFoundError
+    ):
+        data, err = llamacpp_run("model.gguf", "hi")
+    assert data is None
+    assert "not found" in err
+
+
+# ── count_char_mismatches ───────────────────────────────────────
+
+
+def test_count_char_mismatches_identical():
+    assert count_char_mismatches("hello", "hello") == 0
+
+
+def test_count_char_mismatches_all_different():
+    assert count_char_mismatches("abc", "xyz") == 3
+
+
+def test_count_char_mismatches_different_lengths():
+    assert count_char_mismatches("hello", "he") == 3  # 0 char diffs + 3 length diff
+
+
+def test_count_char_mismatches_partial():
+    assert count_char_mismatches("abcd", "abxd") == 1

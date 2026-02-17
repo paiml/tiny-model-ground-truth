@@ -65,6 +65,8 @@ markers = [
     "property_based: hypothesis property-based tests",
     "safetensors_parity: safetensors Python vs apr CLI parity",
     "operations_parity: apr operations (quantize/finetune/merge/prune/distill/convert) vs oracles",
+    "requires_llamacpp: test requires llama-completion in PATH and native GGUF models",
+    "llamacpp_parity: llama.cpp vs oracle and cross-runtime parity (Layer 4)",
 ]
 timeout = 60
 

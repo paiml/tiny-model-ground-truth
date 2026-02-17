@@ -1,6 +1,7 @@
 """Shared helpers for parity tests. Importable by all test_*.py files."""
 
 import json
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -59,6 +60,26 @@ MODELS = {
         "int8": MODELS_DIR / "gpt2-124m-int8.apr",
         "gguf": MODELS_DIR / "gpt2-124m-int4.gguf",
         "ppl_ceiling": 30.0,
+    },
+}
+
+LLAMACPP_BIN = shutil.which("llama-completion") or ""
+
+LLAMACPP_MODELS = {
+    "smollm-135m": {
+        "f16": MODELS_DIR / "smollm-135m-f16.gguf",
+        "q4_0": MODELS_DIR / "smollm-135m-q4_0.gguf",
+        "q8_0": MODELS_DIR / "smollm-135m-q8_0.gguf",
+    },
+    "qwen2-0.5b": {
+        "f16": MODELS_DIR / "qwen2-0.5b-f16.gguf",
+        "q4_0": MODELS_DIR / "qwen2-0.5b-q4_0.gguf",
+        "q8_0": MODELS_DIR / "qwen2-0.5b-q8_0.gguf",
+    },
+    "gpt2-124m": {
+        "f16": MODELS_DIR / "gpt2-124m-f16.gguf",
+        "q4_0": MODELS_DIR / "gpt2-124m-q4_0.gguf",
+        "q8_0": MODELS_DIR / "gpt2-124m-q8_0.gguf",
     },
 }
 
@@ -153,6 +174,40 @@ def load_gpu_oracle(slug: str, precision: str, prompt_name: str) -> dict:
 
 
 def count_mismatches(a: list[int], b: list[int]) -> int:
+    min_len = min(len(a), len(b))
+    m = sum(1 for i in range(min_len) if a[i] != b[i])
+    return m + abs(len(a) - len(b))
+
+
+def llamacpp_run(gguf_path: str, prompt: str, n_tokens: int = 32) -> tuple[dict | None, str | None]:
+    """Run llama-completion greedy inference, return {"text": ...} or None on failure."""
+    cli = LLAMACPP_BIN
+    if not cli:
+        return None, "llama-completion not found in PATH"
+    try:
+        proc = subprocess.run(
+            [
+                cli, "-m", str(gguf_path),
+                "-p", prompt,
+                "-n", str(n_tokens),
+                "--temp", "0", "--top-k", "1",
+                "--no-display-prompt",
+                "-s", "42",
+            ],
+            capture_output=True, text=True, timeout=120,
+        )
+    except subprocess.TimeoutExpired:
+        return None, "TIMEOUT after 120s"
+    except FileNotFoundError:
+        return None, "llama-completion not found in PATH"
+    if proc.returncode != 0:
+        return None, f"llama-completion failed (exit {proc.returncode}): {proc.stderr.strip()[:300]}"
+    text = proc.stdout.strip()
+    return {"text": text}, None
+
+
+def count_char_mismatches(a: str, b: str) -> int:
+    """Count character-level mismatches between two strings."""
     min_len = min(len(a), len(b))
     m = sum(1 for i in range(min_len) if a[i] != b[i])
     return m + abs(len(a) - len(b))

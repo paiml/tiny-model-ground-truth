@@ -1,4 +1,4 @@
-.PHONY: oracle oracle-gpu oracle-gpu-kernels pull convert check check-canary check-token check-drift check-roundtrip check-ppl check-inspect check-validate check-tensors check-lint check-selftest check-diff check-tree check-oracle-id check-hex check-debug check-bench check-qa check-list check-rosetta-diff check-parity-gpu test test-parity test-safetensors test-operations test-canary test-token test-drift test-roundtrip test-ppl test-inspect test-validate test-tensors test-selftest coverage ticket ci recheck clean oracle-quantize oracle-finetune oracle-merge oracle-convert oracle-prune oracle-ops lint typecheck
+.PHONY: oracle oracle-gpu oracle-gpu-kernels pull convert check check-canary check-token check-drift check-roundtrip check-ppl check-inspect check-validate check-tensors check-lint check-selftest check-diff check-tree check-oracle-id check-hex check-debug check-bench check-qa check-list check-rosetta-diff check-parity-gpu test test-parity test-safetensors test-operations test-canary test-token test-drift test-roundtrip test-ppl test-inspect test-validate test-tensors test-selftest coverage ticket ci recheck clean oracle-quantize oracle-finetune oracle-merge oracle-convert oracle-prune oracle-ops lint typecheck convert-llamacpp test-llamacpp check-llamacpp check-cross-runtime
 
 oracle:
 	uv run python scripts/gen_oracle.py --all
@@ -189,6 +189,32 @@ oracle-ops: oracle-quantize oracle-finetune oracle-merge oracle-convert oracle-p
 # 	apr prune models/smollm-135m-int8.apr --method magnitude --target-ratio 0.3 --json
 # 	apr distill models/smollm-135m-int8.apr --student pruned.apr --data train.jsonl --json
 
+# ── llama.cpp native GGUF conversion (Layer 4) ───────────────────
+LLAMACPP_DIR ?= /home/noah/src/llama.cpp
+LLAMACPP_BIN ?= $(LLAMACPP_DIR)/build/bin
+HF_CACHE ?= $(HOME)/.cache/huggingface/hub
+
+convert-llamacpp:
+	@mkdir -p models
+	uv run python $(LLAMACPP_DIR)/convert_hf_to_gguf.py $(HF_CACHE)/models--HuggingFaceTB--SmolLM-135M/snapshots/$$(ls $(HF_CACHE)/models--HuggingFaceTB--SmolLM-135M/snapshots/) --outfile models/smollm-135m-f16.gguf --outtype f16
+	$(LLAMACPP_BIN)/llama-quantize models/smollm-135m-f16.gguf models/smollm-135m-q4_0.gguf Q4_0
+	$(LLAMACPP_BIN)/llama-quantize models/smollm-135m-f16.gguf models/smollm-135m-q8_0.gguf Q8_0
+	uv run python $(LLAMACPP_DIR)/convert_hf_to_gguf.py $(HF_CACHE)/models--Qwen--Qwen2-0.5B/snapshots/$$(ls $(HF_CACHE)/models--Qwen--Qwen2-0.5B/snapshots/) --outfile models/qwen2-0.5b-f16.gguf --outtype f16
+	$(LLAMACPP_BIN)/llama-quantize models/qwen2-0.5b-f16.gguf models/qwen2-0.5b-q4_0.gguf Q4_0
+	$(LLAMACPP_BIN)/llama-quantize models/qwen2-0.5b-f16.gguf models/qwen2-0.5b-q8_0.gguf Q8_0
+	uv run python $(LLAMACPP_DIR)/convert_hf_to_gguf.py $(HF_CACHE)/models--openai-community--gpt2/snapshots/$$(ls $(HF_CACHE)/models--openai-community--gpt2/snapshots/) --outfile models/gpt2-124m-f16.gguf --outtype f16
+	$(LLAMACPP_BIN)/llama-quantize models/gpt2-124m-f16.gguf models/gpt2-124m-q4_0.gguf Q4_0
+	$(LLAMACPP_BIN)/llama-quantize models/gpt2-124m-f16.gguf models/gpt2-124m-q8_0.gguf Q8_0
+
+test-llamacpp:
+	uv run --extra test pytest tests/test_llamacpp_parity.py -v
+
+check-llamacpp:
+	uv run python scripts/parity_check.py --check llamacpp-text
+
+check-cross-runtime:
+	uv run python scripts/parity_check.py --check cross-runtime
+
 # ── Quality ────────────────────────────────────────────────────────
 lint:
 	uv run ruff check scripts/ tests/
@@ -204,3 +230,4 @@ recheck: clean convert check
 
 clean:
 	rm -f models/*.apr models/*.gguf models/*-roundtrip-tmp.apr
+	rm -f models/*-f16.gguf models/*-q4_0.gguf models/*-q8_0.gguf

@@ -100,7 +100,10 @@ def load_oracle(slug: str, prompt_name: str) -> dict:
 def apr_run_json(model_path: str, prompt: str) -> tuple[dict | None, str | None]:
     try:
         proc = subprocess.run(
-            ["apr", "run", str(model_path), "-p", prompt, "-n", "32", "--json"],
+            [
+                "apr", "run", str(model_path), prompt,
+                "-n", "32", "-t", "0", "--raw", "-f", "json",
+            ],
             capture_output=True, text=True, timeout=55,
         )
     except subprocess.TimeoutExpired:

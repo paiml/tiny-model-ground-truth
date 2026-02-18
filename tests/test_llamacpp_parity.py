@@ -140,7 +140,7 @@ def test_cross_runtime_text_match(slug: str, prompt_name: str):
     llama_out, llama_err = llamacpp_run(gguf_path, oracle["prompt"])
     assert llama_err is None, f"llama-completion failed: {llama_err}"
 
-    apr_text = apr_out.get("text", "")
+    apr_text = apr_out.get("text", "") or apr_out.get("generated_text", "")
     llama_text = llama_out["text"]
     assert apr_text == llama_text, (
         f"Cross-runtime mismatch for {slug}/{prompt_name}\n"
